@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>&#8383;itcoin Calculator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary:      #f7931a;
+            --primary-dark: #c96f0d;
+            --blue:         #007bff;
+            --border:       #ddd;
+            --bg:           #f4f5f7;
+            --card:         #ffffff;
+            --text:         #222;
+            --muted:        #666;
+            --success:      #1a9e4a;
+            --danger:       #d32f2f;
+            --focus-ring:   rgba(247,147,26,0.35);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 880px;
+            margin: auto;
+            padding: 28px 32px;
+            background: var(--card);
+            box-shadow: 0 2px 20px rgba(0,0,0,0.09);
+            border-radius: 14px;
+        }
+
+        /* ── Header ── */
+        h1 {
+            color: var(--primary);
+            text-align: center;
+            margin: 0 0 6px;
+            font-size: 2rem;
+            letter-spacing: -0.5px;
+        }
+
+        h2 {
+            color: var(--text);
+            font-size: 1.15rem;
+            margin: 28px 0 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        p.subtitle {
+            text-align: center;
+            color: var(--muted);
+            margin: 0 0 14px;
+            font-size: 14px;
+        }
+
+        /* ── Data status bar ── */
+        .data-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 9px 16px;
+            border-radius: 8px;
+            margin: 12px 0 22px;
+            font-size: 13.5px;
+            min-height: 40px;
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .data-status.loading { background:#f5f5f5; border:1px solid #ddd; color:#888; }
+        .data-status.ok      { background:#edfaf2; border:1px solid #9fe0b8; color:#1a6e3a; }
+        .data-status.stale   { background:#fffbee; border:1px solid #f0d060; color:#7a5800; }
+        .data-status.error   { background:#fff4f4; border:1px solid #f5b8b8; color:#8a1a1a; }
+
+        /* ── Spinner ── */
+        .spin {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: rotate 0.75s linear infinite;
+            flex-shrink: 0;
+            vertical-align: middle;
+        }
+        @keyframes rotate { to { transform: rotate(360deg); } }
+
+        /* ── Live price ticker ── */
+        .price-ticker {
+            text-align: center;
+            padding: 20px;
+            margin: 0 0 24px;
+            background: linear-gradient(135deg, #fff8ee 0%, #fff 100%);
+            border: 1.5px solid #f0d090;
+            border-radius: 12px;
+        }
+        .price-ticker .price-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--muted);
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .price-ticker .price-value {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: var(--text);
+            letter-spacing: -1px;
+        }
+        .price-ticker .price-change {
+            font-size: 15px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+        .price-ticker .price-change.up   { color: var(--success); }
+        .price-ticker .price-change.down  { color: var(--danger); }
+        .price-ticker .refresh-info {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 8px;
+        }
+
+        /* ── Calculator section ── */
+        .calc-section {
+            padding: 20px;
+            background: #fafbfc;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 24px;
+        }
+
+        .calc-fields {
+            display: flex;
+            gap: 24px;
+            align-items: flex-end;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .calc-separator {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary);
+            padding-bottom: 6px;
+        }
+
+        label {
+            font-weight: 600;
+            font-size: 11.5px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--muted);
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        input {
+            padding: 9px 12px;
+            font-size: 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 7px;
+            width: 200px;
+            background: white;
+            transition: border-color 0.18s, box-shadow 0.18s;
+            color: var(--text);
+        }
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--focus-ring);
+        }
+
+        /* ── Projections ── */
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            max-width: 100%;
+            margin-top: 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            min-width: 100%;
+            border: none;
+            margin: 0;
+        }
+
+        th, td {
+            border: 1px solid var(--border);
+            padding: 10px 14px;
+            text-align: right;
+        }
+        th:first-child, td:first-child { text-align: left; }
+
+        th {
+            background: #f6f8fa;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: var(--muted);
+        }
+
+        /* Remove outer borders inside the wrapper */
+        .table-wrapper th, .table-wrapper td {
+            border-left: none;
+            border-right: none;
+        }
+        .table-wrapper tr:last-child td { border-bottom: none; }
+        .table-wrapper thead th { border-top: none; }
+
+        .positive { color: var(--success); font-weight: 700; }
+        .negative { color: var(--danger);  font-weight: 700; }
+
+        .current-row {
+            background: #fff8ee;
+            font-weight: 700;
+        }
+
+        /* ── Custom target input ── */
+        .add-target {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+        .add-target input {
+            width: 180px;
+        }
+
+        button {
+            padding: 9px 22px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 7px;
+            letter-spacing: 0.3px;
+            transition: background 0.18s, transform 0.1s, box-shadow 0.18s;
+            box-shadow: 0 2px 8px rgba(247,147,26,0.3);
+        }
+        button:hover:not(:disabled) {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(247,147,26,0.35);
+        }
+        button:active:not(:disabled) { transform: translateY(0); }
+
+        button.btn-sm {
+            padding: 6px 14px;
+            font-size: 12px;
+            box-shadow: none;
+        }
+
+        button.btn-danger {
+            background: var(--danger);
+            box-shadow: 0 2px 8px rgba(211,47,47,0.2);
+        }
+        button.btn-danger:hover { background: #b71c1c; }
+
+        /* ── Chart ── */
+        .chart-container {
+            position: relative;
+            margin-top: 22px;
+            height: 350px;
+        }
+        canvas {
+            max-width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center;
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            font-size: 13px;
+            color: var(--muted);
+        }
+        .footer a { color: var(--blue); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+
+        .disclaimer {
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+            padding: 10px 14px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            border-left: 3px solid #e0a040;
+            text-align: left;
+            line-height: 1.6;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 620px) {
+            body { padding: 10px; }
+            .container { padding: 18px 16px; border-radius: 10px; }
+            h1 { font-size: 1.55rem; }
+            .price-ticker .price-value { font-size: 1.8rem; }
+            .calc-fields { flex-direction: column; align-items: center; }
+            input { width: 230px; }
+            .chart-container { height: 280px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <h1>&#8383;itcoin Calculator</h1>
+    <p class="subtitle">
+        Real-time BTC/USD converter with future price projections
+    </p>
+
+    <!-- Live status bar -->
+    <div id="dataStatus" class="data-status loading">
+        <span class="spin"></span>
+        <span id="statusText">Connecting to CoinGecko&hellip;</span>
+    </div>
+
+    <!-- ── Live Price Ticker ── -->
+    <div class="price-ticker">
+        <div class="price-label">Bitcoin (BTC/USD)</div>
+        <div class="price-value" id="livePrice">--</div>
+        <div class="price-change" id="priceChange">--</div>
+        <div class="refresh-info" id="refreshInfo">Refreshes every 60 seconds</div>
+    </div>
+
+    <!-- ── Calculator ── -->
+    <h2>&#8383; Converter</h2>
+    <div class="calc-section">
+        <div class="calc-fields">
+            <div class="field-group">
+                <label for="btcInput">Bitcoin (BTC)</label>
+                <input type="number" id="btcInput" inputmode="decimal" min="0" step="0.00000001" placeholder="1.00000000" value="1">
+            </div>
+            <div class="calc-separator">=</div>
+            <div class="field-group">
+                <label for="usdInput">US Dollars (USD)</label>
+                <input type="number" id="usdInput" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Future Price Projections ── -->
+    <h2>Future Value Projections</h2>
+    <p class="subtitle" style="text-align:left; margin-bottom:6px;">
+        What your holdings could be worth at different BTC price targets
+    </p>
+
+    <div class="add-target">
+        <input type="number" id="customTarget" inputmode="decimal" min="1" step="1000" placeholder="Custom price target ($)">
+        <button class="btn-sm" onclick="addCustomTarget()">Add Target</button>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="projectionTable">
+            <thead>
+                <tr>
+                    <th>BTC Price Target</th>
+                    <th>Holdings Value</th>
+                    <th>Change vs Current</th>
+                </tr>
+            </thead>
+            <tbody id="projectionBody"></tbody>
+        </table>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="projectionChart"></canvas>
+    </div>
+
+    <footer class="footer">
+        <p>
+            <a href="https://observation-deck.netlify.app/">Observation Deck</a>
+        </p>
+        <p>
+            Live data from <a href="https://www.coingecko.com/" target="_blank" rel="noopener">CoinGecko</a>
+            &bull; Auto-refreshes every 60 seconds
+        </p>
+        <div class="disclaimer">
+            <strong>Not financial advice.</strong> This tool is for educational and informational purposes only.
+            Bitcoin is a highly volatile asset &mdash;
+            always conduct your own research before making any investment decisions.
+        </div>
+    </footer>
+
+</div><!-- /.container -->
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Configuration
+// ─────────────────────────────────────────────────────────────────────────────
+const COINGECKO_URL   = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true';
+const REFRESH_MS      = 60000;
+const CACHE_KEY       = 'calculat-burr-btc-price';
+const TARGETS_KEY     = 'calculat-burr-custom-targets';
+const DEFAULT_TARGETS = [50000, 75000, 100000, 150000, 200000, 250000, 500000, 1000000];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DOM references
+// ─────────────────────────────────────────────────────────────────────────────
+const dataStatusEl   = document.getElementById('dataStatus');
+const statusTextEl   = document.getElementById('statusText');
+const livePriceEl    = document.getElementById('livePrice');
+const priceChangeEl  = document.getElementById('priceChange');
+const refreshInfoEl  = document.getElementById('refreshInfo');
+const btcInput       = document.getElementById('btcInput');
+const usdInput       = document.getElementById('usdInput');
+const projectionBody = document.getElementById('projectionBody');
+const customTargetIn = document.getElementById('customTarget');
+
+let currentPrice   = null;
+let change24h      = null;
+let lastEdited     = 'btc';   // track which input the user last typed in
+let refreshTimer   = null;
+let countdownTimer = null;
+let secondsLeft    = 60;
+let projChart      = null;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Formatters
+// ─────────────────────────────────────────────────────────────────────────────
+function fmtUSD(n) {
+    return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtBTC(n) {
+    const s = Number(n).toFixed(8);
+    // trim trailing zeros but keep at least 2 decimals
+    const parts = s.split('.');
+    let dec = parts[1].replace(/0+$/, '');
+    if (dec.length < 2) dec = dec.padEnd(2, '0');
+    return parts[0] + '.' + dec;
+}
+
+function fmtPct(n) {
+    const sign = n >= 0 ? '+' : '';
+    return sign + n.toFixed(2) + '%';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Status bar
+// ─────────────────────────────────────────────────────────────────────────────
+function setStatus(state, html) {
+    dataStatusEl.className = `data-status ${state}`;
+    const icon = {
+        loading: '<span class="spin"></span>',
+        ok:      '&#10003;',
+        stale:   '&#9888;',
+        error:   '&#10007;',
+    }[state] || '';
+    statusTextEl.innerHTML = `${icon}&ensp;${html}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fetch with retry + exponential back-off
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchWithRetry(url, retries = 3, baseDelay = 1500, timeout = 12000) {
+    for (let attempt = 0; attempt < retries; attempt++) {
+        const ctrl = new AbortController();
+        const tid  = setTimeout(() => ctrl.abort(), timeout);
+        try {
+            const res = await fetch(url, { signal: ctrl.signal });
+            clearTimeout(tid);
+            if (res.status === 429) throw new Error('Rate limited (429)');
+            if (!res.ok)            throw new Error(`HTTP ${res.status}`);
+            return res;
+        } catch (err) {
+            clearTimeout(tid);
+            if (attempt === retries - 1) throw err;
+            const wait = baseDelay * Math.pow(2, attempt);
+            console.warn(`Attempt ${attempt + 1}/${retries} failed: ${err.message}. Retrying in ${wait}ms…`);
+            await new Promise(r => setTimeout(r, wait));
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fetch live BTC price
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchBtcPrice() {
+    setStatus('loading', 'Fetching latest price&hellip;');
+    try {
+        const res  = await fetchWithRetry(COINGECKO_URL);
+        const data = await res.json();
+        currentPrice = data.bitcoin.usd;
+        change24h    = data.bitcoin.usd_24h_change;
+
+        // Cache to localStorage
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
+            price: currentPrice,
+            change24h: change24h,
+            timestamp: Date.now()
+        }));
+
+        updateTicker();
+        recalculate();
+        setStatus('ok', `Live price &mdash; $${currentPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+    } catch (err) {
+        console.error('Price fetch error:', err);
+        // Try cached value
+        const cached = loadCache();
+        if (cached) {
+            currentPrice = cached.price;
+            change24h    = cached.change24h;
+            const age = Date.now() - cached.timestamp;
+            const mins = Math.round(age / 60000);
+            updateTicker();
+            recalculate();
+            setStatus('stale', `Using cached price (${mins < 1 ? '<1' : mins} min old) &mdash; live update failed`);
+        } else {
+            setStatus('error', `Unable to fetch price: ${err.message}`);
+        }
+    }
+}
+
+function loadCache() {
+    try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+    } catch { return null; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Update live price ticker
+// ─────────────────────────────────────────────────────────────────────────────
+function updateTicker() {
+    if (currentPrice == null) return;
+    livePriceEl.textContent = fmtUSD(currentPrice);
+
+    if (change24h != null) {
+        const sign = change24h >= 0 ? '+' : '';
+        priceChangeEl.textContent = `${sign}${change24h.toFixed(2)}% (24h)`;
+        priceChangeEl.className = `price-change ${change24h >= 0 ? 'up' : 'down'}`;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auto-refresh timer with countdown
+// ─────────────────────────────────────────────────────────────────────────────
+function startRefreshCycle() {
+    secondsLeft = 60;
+    clearInterval(refreshTimer);
+    clearInterval(countdownTimer);
+
+    countdownTimer = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft <= 0) secondsLeft = 60;
+        refreshInfoEl.textContent = `Refreshes in ${secondsLeft}s`;
+    }, 1000);
+
+    refreshTimer = setInterval(() => {
+        secondsLeft = 60;
+        fetchBtcPrice();
+    }, REFRESH_MS);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Calculator — bidirectional conversion
+// ─────────────────────────────────────────────────────────────────────────────
+btcInput.addEventListener('input', () => {
+    lastEdited = 'btc';
+    recalculate();
+});
+
+usdInput.addEventListener('input', () => {
+    lastEdited = 'usd';
+    recalculate();
+});
+
+function recalculate() {
+    if (currentPrice == null) return;
+
+    if (lastEdited === 'btc') {
+        const btc = parseFloat(btcInput.value);
+        if (!isNaN(btc) && btc >= 0) {
+            usdInput.value = (btc * currentPrice).toFixed(2);
+        } else {
+            usdInput.value = '';
+        }
+    } else {
+        const usd = parseFloat(usdInput.value);
+        if (!isNaN(usd) && usd >= 0) {
+            btcInput.value = fmtBTC(usd / currentPrice);
+        } else {
+            btcInput.value = '';
+        }
+    }
+
+    updateProjections();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Future price projections
+// ─────────────────────────────────────────────────────────────────────────────
+function getCustomTargets() {
+    try {
+        return JSON.parse(localStorage.getItem(TARGETS_KEY)) || [];
+    } catch { return []; }
+}
+
+function saveCustomTargets(targets) {
+    localStorage.setItem(TARGETS_KEY, JSON.stringify(targets));
+}
+
+function addCustomTarget() {
+    const val = parseFloat(customTargetIn.value);
+    if (isNaN(val) || val <= 0) return;
+    const rounded = Math.round(val);
+    const customs = getCustomTargets();
+    if (!customs.includes(rounded) && !DEFAULT_TARGETS.includes(rounded)) {
+        customs.push(rounded);
+        saveCustomTargets(customs);
+    }
+    customTargetIn.value = '';
+    updateProjections();
+}
+
+// Allow Enter key to add target
+customTargetIn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); addCustomTarget(); }
+});
+
+function removeCustomTarget(price) {
+    const customs = getCustomTargets().filter(t => t !== price);
+    saveCustomTargets(customs);
+    updateProjections();
+}
+
+function updateProjections() {
+    if (currentPrice == null) return;
+
+    const btcAmount = parseFloat(btcInput.value) || 0;
+    const customs = getCustomTargets();
+    const allTargets = [...DEFAULT_TARGETS, ...customs].sort((a, b) => a - b);
+
+    // Build table rows
+    let html = '';
+    const labels = [];
+    const values = [];
+    const barColors = [];
+
+    // Add current price row
+    const currentValue = btcAmount * currentPrice;
+
+    for (const target of allTargets) {
+        const holdingsValue = btcAmount * target;
+        const changePct = ((target - currentPrice) / currentPrice) * 100;
+        const changeDollar = holdingsValue - currentValue;
+        const isCustom = customs.includes(target);
+        const isCurrent = Math.abs(target - currentPrice) < 100;
+
+        const changeClass = changePct >= 0 ? 'positive' : 'negative';
+        const sign = changeDollar >= 0 ? '+' : '';
+
+        html += `<tr class="${isCurrent ? 'current-row' : ''}">`;
+        html += `<td>${fmtUSD(target)}${isCustom ? ' <button class="btn-sm btn-danger" onclick="removeCustomTarget('+target+')" title="Remove">&times;</button>' : ''}</td>`;
+        html += `<td>${fmtUSD(holdingsValue)}</td>`;
+        html += `<td class="${changeClass}">${fmtPct(changePct)} (${sign}${fmtUSD(Math.abs(changeDollar))})</td>`;
+        html += `</tr>`;
+
+        labels.push('$' + (target >= 1000 ? (target / 1000).toFixed(0) + 'K' : target));
+        values.push(holdingsValue);
+        barColors.push(isCurrent ? '#007bff' : '#f7931a');
+    }
+
+    projectionBody.innerHTML = html;
+
+    // Update chart
+    updateChart(labels, values, barColors);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chart.js — horizontal bar chart
+// ─────────────────────────────────────────────────────────────────────────────
+function updateChart(labels, values, colors) {
+    const ctx = document.getElementById('projectionChart');
+
+    if (projChart) {
+        projChart.data.labels = labels;
+        projChart.data.datasets[0].data = values;
+        projChart.data.datasets[0].backgroundColor = colors;
+        projChart.update();
+        return;
+    }
+
+    projChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Holdings Value (USD)',
+                data: values,
+                backgroundColor: colors,
+                borderRadius: 4,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            return ' ' + fmtUSD(ctx.raw);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        callback: function(val) {
+                            if (val >= 1000000) return '$' + (val / 1000000).toFixed(1) + 'M';
+                            if (val >= 1000)    return '$' + (val / 1000).toFixed(0) + 'K';
+                            return '$' + val;
+                        }
+                    },
+                    grid: { color: '#f0f0f0' }
+                },
+                y: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────────────────────
+(async function init() {
+    // Load cached price immediately for instant display
+    const cached = loadCache();
+    if (cached && (Date.now() - cached.timestamp) < 120000) {
+        currentPrice = cached.price;
+        change24h    = cached.change24h;
+        updateTicker();
+        recalculate();
+        setStatus('ok', `Cached price &mdash; refreshing&hellip;`);
+    }
+
+    // Fetch fresh price
+    await fetchBtcPrice();
+
+    // Start auto-refresh
+    startRefreshCycle();
+})();
+</script>
+</body>
+</html>
