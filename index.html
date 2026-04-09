@@ -691,7 +691,7 @@ function updateProjections() {
 
         labels.push('$' + (target >= 1000 ? (target / 1000).toFixed(0) + 'K' : target));
         values.push(holdingsValue);
-        barColors.push(isCurrent ? '#007bff' : '#f7931a');
+        barColors.push(isCustom ? '#007bff' : '#f7931a');
     }
 
     projectionBody.innerHTML = html;
@@ -701,47 +701,57 @@ function updateProjections() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Chart.js — horizontal bar chart
+// Chart.js — line chart
 // ─────────────────────────────────────────────────────────────────────────────
-function updateChart(labels, values, colors) {
+function updateChart(labels, values, pointColors) {
     const ctx = document.getElementById('projectionChart');
 
+    // Destroy and recreate to cleanly handle added/removed points
     if (projChart) {
-        projChart.data.labels = labels;
-        projChart.data.datasets[0].data = values;
-        projChart.data.datasets[0].backgroundColor = colors;
-        projChart.update();
-        return;
+        projChart.destroy();
+        projChart = null;
     }
 
     projChart = new Chart(ctx, {
-        type: 'bar',
+        type: 'line',
         data: {
             labels: labels,
             datasets: [{
                 label: 'Holdings Value (USD)',
                 data: values,
-                backgroundColor: colors,
-                borderRadius: 4,
-                borderSkipped: false,
+                borderColor: '#f7931a',
+                backgroundColor: 'rgba(247, 147, 26, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointBackgroundColor: pointColors,
+                pointBorderColor: pointColors,
+                pointRadius: 6,
+                pointHoverRadius: 9,
+                borderWidth: 2.5,
             }]
         },
         options: {
-            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
+                        title: function(items) {
+                            return 'BTC @ ' + items[0].label;
+                        },
                         label: function(ctx) {
-                            return ' ' + fmtUSD(ctx.raw);
+                            return ' Value: ' + fmtUSD(ctx.raw);
                         }
                     }
                 }
             },
             scales: {
                 x: {
+                    grid: { color: '#f0f0f0' },
+                    ticks: { maxRotation: 45 }
+                },
+                y: {
                     ticks: {
                         callback: function(val) {
                             if (val >= 1000000) return '$' + (val / 1000000).toFixed(1) + 'M';
@@ -750,9 +760,6 @@ function updateChart(labels, values, colors) {
                         }
                     },
                     grid: { color: '#f0f0f0' }
-                },
-                y: {
-                    grid: { display: false }
                 }
             }
         }
