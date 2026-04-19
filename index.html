@@ -10,6 +10,8 @@
             --primary:      #f7931a;
             --primary-dark: #c96f0d;
             --blue:         #007bff;
+            --gold:         #d4a017;
+            --gold-light:   #fffbee;
             --border:       #ddd;
             --bg:           #f4f5f7;
             --card:         #ffffff;
@@ -32,7 +34,7 @@
         }
 
         .container {
-            max-width: 880px;
+            max-width: 920px;
             margin: auto;
             padding: 28px 32px;
             background: var(--card);
@@ -95,15 +97,30 @@
         }
         @keyframes rotate { to { transform: rotate(360deg); } }
 
-        /* ── Live price ticker ── */
-        .price-ticker {
-            text-align: center;
-            padding: 20px;
+        /* ── Ticker row ── */
+        .ticker-row {
+            display: flex;
+            gap: 16px;
             margin: 0 0 24px;
-            background: linear-gradient(135deg, #fff8ee 0%, #fff 100%);
-            border: 1.5px solid #f0d090;
+        }
+
+        .price-ticker {
+            flex: 1;
+            text-align: center;
+            padding: 18px 14px;
             border-radius: 12px;
         }
+
+        .price-ticker.btc-ticker {
+            background: linear-gradient(135deg, #fff8ee 0%, #fff 100%);
+            border: 1.5px solid #f0d090;
+        }
+
+        .price-ticker.gold-ticker {
+            background: linear-gradient(135deg, #fefbf0 0%, #fff 100%);
+            border: 1.5px solid #d4a017;
+        }
+
         .price-ticker .price-label {
             font-size: 12px;
             text-transform: uppercase;
@@ -112,23 +129,26 @@
             font-weight: 600;
             margin-bottom: 4px;
         }
+
         .price-ticker .price-value {
-            font-size: 2.4rem;
+            font-size: 2rem;
             font-weight: 800;
             color: var(--text);
-            letter-spacing: -1px;
+            letter-spacing: -0.5px;
         }
+
         .price-ticker .price-change {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 700;
             margin-top: 4px;
         }
         .price-ticker .price-change.up   { color: var(--success); }
-        .price-ticker .price-change.down  { color: var(--danger); }
+        .price-ticker .price-change.down { color: var(--danger); }
+
         .price-ticker .refresh-info {
-            font-size: 12px;
+            font-size: 11.5px;
             color: var(--muted);
-            margin-top: 8px;
+            margin-top: 6px;
         }
 
         /* ── Calculator section ── */
@@ -187,7 +207,7 @@
             box-shadow: 0 0 0 3px var(--focus-ring);
         }
 
-        /* ── Projections ── */
+        /* ── Projections table ── */
         .table-wrapper {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
@@ -210,6 +230,7 @@
             border: 1px solid var(--border);
             padding: 10px 14px;
             text-align: right;
+            white-space: nowrap;
         }
         th:first-child, td:first-child { text-align: left; }
 
@@ -222,7 +243,6 @@
             color: var(--muted);
         }
 
-        /* Remove outer borders inside the wrapper */
         .table-wrapper th, .table-wrapper td {
             border-left: none;
             border-right: none;
@@ -233,9 +253,25 @@
         .positive { color: var(--success); font-weight: 700; }
         .negative { color: var(--danger);  font-weight: 700; }
 
-        .current-row {
-            background: #fff8ee;
-            font-weight: 700;
+        .current-row  { background: #fff8ee; font-weight: 700; }
+        .ath-row      { background: #f5f5f5; }
+
+        /* ── Chart legend ── */
+        .chart-legend {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 12px;
+            font-size: 12.5px;
+            color: var(--muted);
+        }
+        .legend-dot {
+            display: inline-block;
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+            vertical-align: middle;
         }
 
         /* ── Custom target input ── */
@@ -247,9 +283,7 @@
             margin-top: 14px;
             flex-wrap: wrap;
         }
-        .add-target input {
-            width: 180px;
-        }
+        .add-target input { width: 180px; }
 
         button {
             padding: 9px 22px;
@@ -276,7 +310,6 @@
             font-size: 12px;
             box-shadow: none;
         }
-
         button.btn-danger {
             background: var(--danger);
             box-shadow: 0 2px 8px rgba(211,47,47,0.2);
@@ -287,12 +320,60 @@
         .chart-container {
             position: relative;
             margin-top: 22px;
-            height: 350px;
+            height: 360px;
         }
         canvas {
             max-width: 100%;
             border: 1px solid var(--border);
             border-radius: 10px;
+        }
+
+        /* ── Gold comparison card ── */
+        .gold-comparison {
+            margin-top: 10px;
+            padding: 20px;
+            background: linear-gradient(135deg, #fefbf0 0%, #fffef9 100%);
+            border: 1.5px solid #d4a017;
+            border-radius: 12px;
+        }
+        .gold-comparison h3 {
+            margin: 0 0 14px;
+            font-size: 1rem;
+            color: var(--text);
+        }
+        .gold-stat-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .gold-stat {
+            flex: 1;
+            min-width: 140px;
+            text-align: center;
+            padding: 12px 10px;
+            background: white;
+            border: 1px solid #e8d88a;
+            border-radius: 8px;
+        }
+        .gold-stat .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--muted);
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .gold-stat .stat-value {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--text);
+        }
+        .gold-stat .stat-sub {
+            font-size: 11.5px;
+            color: var(--muted);
+            margin-top: 2px;
         }
 
         /* ── Footer ── */
@@ -324,10 +405,12 @@
             body { padding: 10px; }
             .container { padding: 18px 16px; border-radius: 10px; }
             h1 { font-size: 1.55rem; }
-            .price-ticker .price-value { font-size: 1.8rem; }
+            .ticker-row { flex-direction: column; }
+            .price-ticker .price-value { font-size: 1.7rem; }
             .calc-fields { flex-direction: column; align-items: center; }
             input { width: 230px; }
             .chart-container { height: 280px; }
+            .gold-stat-row { flex-direction: column; }
         }
     </style>
 </head>
@@ -335,9 +418,7 @@
 <div class="container">
 
     <h1>&#8383;itcoin Calculator</h1>
-    <p class="subtitle">
-        Real-time BTC/USD converter with future price projections
-    </p>
+    <p class="subtitle">Real-time BTC/USD converter with future price projections</p>
 
     <!-- Live status bar -->
     <div id="dataStatus" class="data-status loading">
@@ -345,12 +426,20 @@
         <span id="statusText">Connecting to CoinGecko&hellip;</span>
     </div>
 
-    <!-- ── Live Price Ticker ── -->
-    <div class="price-ticker">
-        <div class="price-label">Bitcoin (BTC/USD)</div>
-        <div class="price-value" id="livePrice">--</div>
-        <div class="price-change" id="priceChange">--</div>
-        <div class="refresh-info" id="refreshInfo">Refreshes every 60 seconds</div>
+    <!-- ── Live Price Tickers ── -->
+    <div class="ticker-row">
+        <div class="price-ticker btc-ticker">
+            <div class="price-label">Bitcoin (BTC/USD)</div>
+            <div class="price-value" id="livePrice">--</div>
+            <div class="price-change" id="priceChange">--</div>
+            <div class="refresh-info" id="refreshInfo">Refreshes every 60 seconds</div>
+        </div>
+        <div class="price-ticker gold-ticker">
+            <div class="price-label">Gold (XAU/USD)</div>
+            <div class="price-value" id="goldPrice">--</div>
+            <div class="price-change" id="goldChange">--</div>
+            <div class="refresh-info" id="goldRefreshInfo">Per troy oz</div>
+        </div>
     </div>
 
     <!-- ── Calculator ── -->
@@ -387,6 +476,7 @@
                     <th>BTC Price Target</th>
                     <th>Holdings Value</th>
                     <th>Change vs Current</th>
+                    <th>Est. Market Cap</th>
                 </tr>
             </thead>
             <tbody id="projectionBody"></tbody>
@@ -395,6 +485,40 @@
 
     <div class="chart-container">
         <canvas id="projectionChart"></canvas>
+    </div>
+    <div class="chart-legend">
+        <span><span class="legend-dot" style="background:#f7931a"></span>Default target</span>
+        <span><span class="legend-dot" style="background:#000"></span>2025 ATH</span>
+        <span><span class="legend-dot" style="background:#007bff"></span>Custom target</span>
+        <span><span class="legend-dot" style="background:#d32f2f"></span>Current price (below ATH)</span>
+        <span><span class="legend-dot" style="background:#1a9e4a"></span>Current price (above ATH)</span>
+    </div>
+
+    <!-- ── Gold vs Bitcoin Market Cap ── -->
+    <h2>Gold vs Bitcoin Market Cap</h2>
+    <div class="gold-comparison">
+        <div class="gold-stat-row">
+            <div class="gold-stat">
+                <div class="stat-label">Gold Market Cap</div>
+                <div class="stat-value" id="goldMktCap">--</div>
+                <div class="stat-sub">~6.835B oz above ground</div>
+            </div>
+            <div class="gold-stat">
+                <div class="stat-label">Bitcoin Market Cap</div>
+                <div class="stat-value" id="btcMktCap">--</div>
+                <div class="stat-sub" id="btcSupply">-- BTC in circulation</div>
+            </div>
+            <div class="gold-stat">
+                <div class="stat-label">BTC % of Gold</div>
+                <div class="stat-value" id="btcVsGoldPct">--</div>
+                <div class="stat-sub">market cap dominance</div>
+            </div>
+            <div class="gold-stat">
+                <div class="stat-label">BTC at Gold Parity</div>
+                <div class="stat-value" id="btcParityPrice">--</div>
+                <div class="stat-sub" id="btcParityPct">required increase: --</div>
+            </div>
+        </div>
     </div>
 
     <footer class="footer">
@@ -410,6 +534,7 @@
             <strong>Not financial advice.</strong> This tool is for educational and informational purposes only.
             Bitcoin is a highly volatile asset &mdash;
             always conduct your own research before making any investment decisions.
+            Gold market cap estimate based on ~212,582 tonnes of above-ground gold (World Gold Council).
         </div>
     </footer>
 
@@ -419,11 +544,19 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuration
 // ─────────────────────────────────────────────────────────────────────────────
-const COINGECKO_URL   = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true';
-const REFRESH_MS      = 60000;
-const CACHE_KEY       = 'calculat-burr-btc-price';
-const TARGETS_KEY     = 'calculat-burr-custom-targets';
+const BTC_URL        = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_market_cap=true';
+const GOLD_URL       = 'https://api.coingecko.com/api/v3/simple/price?ids=pax-gold&vs_currencies=usd&include_24hr_change=true';
+const REFRESH_MS     = 60000;
+const CACHE_KEY      = 'calculat-burr-btc-price';
+const GOLD_CACHE_KEY = 'calculat-burr-gold-price';
+const TARGETS_KEY    = 'calculat-burr-custom-targets';
+
+// 2025 All-Time High — special pinned target
+const ATH_2025        = 126198.07;
 const DEFAULT_TARGETS = [50000, 75000, 100000, 150000, 200000, 250000, 500000, 1000000];
+
+// Total above-ground gold: ~212,582 tonnes × 32,150.7 troy oz/tonne
+const TOTAL_GOLD_OZ = 6_835_000_000;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DOM references
@@ -433,18 +566,36 @@ const statusTextEl   = document.getElementById('statusText');
 const livePriceEl    = document.getElementById('livePrice');
 const priceChangeEl  = document.getElementById('priceChange');
 const refreshInfoEl  = document.getElementById('refreshInfo');
+const goldPriceEl    = document.getElementById('goldPrice');
+const goldChangeEl   = document.getElementById('goldChange');
+const goldRefreshEl  = document.getElementById('goldRefreshInfo');
 const btcInput       = document.getElementById('btcInput');
 const usdInput       = document.getElementById('usdInput');
 const projectionBody = document.getElementById('projectionBody');
 const customTargetIn = document.getElementById('customTarget');
 
-let currentPrice   = null;
-let change24h      = null;
-let lastEdited     = 'btc';   // track which input the user last typed in
-let refreshTimer   = null;
-let countdownTimer = null;
-let secondsLeft    = 60;
-let projChart      = null;
+// Gold comparison DOM
+const goldMktCapEl   = document.getElementById('goldMktCap');
+const btcMktCapEl    = document.getElementById('btcMktCap');
+const btcSupplyEl    = document.getElementById('btcSupply');
+const btcVsGoldEl    = document.getElementById('btcVsGoldPct');
+const btcParityEl    = document.getElementById('btcParityPrice');
+const btcParityPctEl = document.getElementById('btcParityPct');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────────
+let currentPrice        = null;
+let change24h           = null;
+let btcMarketCap        = null;
+let btcCirculatingSupply = null;
+let goldCurrentPrice    = null;
+let goldChange24h       = null;
+let lastEdited          = 'btc';
+let refreshTimer        = null;
+let countdownTimer      = null;
+let secondsLeft         = 60;
+let projChart           = null;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Formatters
@@ -455,7 +606,6 @@ function fmtUSD(n) {
 
 function fmtBTC(n) {
     const s = Number(n).toFixed(8);
-    // trim trailing zeros but keep at least 2 decimals
     const parts = s.split('.');
     let dec = parts[1].replace(/0+$/, '');
     if (dec.length < 2) dec = dec.padEnd(2, '0');
@@ -465,6 +615,17 @@ function fmtBTC(n) {
 function fmtPct(n) {
     const sign = n >= 0 ? '+' : '';
     return sign + n.toFixed(2) + '%';
+}
+
+function fmtMarketCap(n) {
+    if (n >= 1e12) return '$' + (n / 1e12).toFixed(2) + 'T';
+    if (n >= 1e9)  return '$' + (n / 1e9).toFixed(2) + 'B';
+    if (n >= 1e6)  return '$' + (n / 1e6).toFixed(2) + 'M';
+    return fmtUSD(n);
+}
+
+function fmtSupply(n) {
+    return Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' BTC';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -505,63 +666,99 @@ async function fetchWithRetry(url, retries = 3, baseDelay = 1500, timeout = 1200
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fetch live BTC price
+// Fetch live BTC price + market cap
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchBtcPrice() {
-    setStatus('loading', 'Fetching latest price&hellip;');
+    setStatus('loading', 'Fetching latest BTC price&hellip;');
     try {
-        const res  = await fetchWithRetry(COINGECKO_URL);
+        const res  = await fetchWithRetry(BTC_URL);
         const data = await res.json();
-        currentPrice = data.bitcoin.usd;
-        change24h    = data.bitcoin.usd_24h_change;
+        currentPrice        = data.bitcoin.usd;
+        change24h           = data.bitcoin.usd_24h_change;
+        btcMarketCap        = data.bitcoin.usd_market_cap;
+        btcCirculatingSupply = btcMarketCap / currentPrice;
 
-        // Cache to localStorage
         localStorage.setItem(CACHE_KEY, JSON.stringify({
-            price: currentPrice,
-            change24h: change24h,
-            timestamp: Date.now()
+            price: currentPrice, change24h, marketCap: btcMarketCap, timestamp: Date.now()
         }));
 
-        updateTicker();
+        updateBtcTicker();
         recalculate();
-        setStatus('ok', `Live price &mdash; $${currentPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+        setStatus('ok', `Live price &mdash; ${fmtUSD(currentPrice)}`);
     } catch (err) {
-        console.error('Price fetch error:', err);
-        // Try cached value
-        const cached = loadCache();
+        console.error('BTC fetch error:', err);
+        const cached = loadBtcCache();
         if (cached) {
-            currentPrice = cached.price;
-            change24h    = cached.change24h;
-            const age = Date.now() - cached.timestamp;
-            const mins = Math.round(age / 60000);
-            updateTicker();
+            currentPrice         = cached.price;
+            change24h            = cached.change24h;
+            btcMarketCap         = cached.marketCap || null;
+            btcCirculatingSupply = btcMarketCap ? btcMarketCap / currentPrice : null;
+            const mins = Math.round((Date.now() - cached.timestamp) / 60000);
+            updateBtcTicker();
             recalculate();
-            setStatus('stale', `Using cached price (${mins < 1 ? '<1' : mins} min old) &mdash; live update failed`);
+            setStatus('stale', `Cached price (${mins < 1 ? '<1' : mins} min old) &mdash; live update failed`);
         } else {
-            setStatus('error', `Unable to fetch price: ${err.message}`);
+            setStatus('error', `Unable to fetch BTC price: ${err.message}`);
         }
     }
 }
 
-function loadCache() {
-    try {
-        const raw = localStorage.getItem(CACHE_KEY);
-        if (!raw) return null;
-        return JSON.parse(raw);
-    } catch { return null; }
+function loadBtcCache() {
+    try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch { return null; }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Update live price ticker
+// Fetch live Gold price via CoinGecko (Pax Gold = 1 troy oz of gold)
 // ─────────────────────────────────────────────────────────────────────────────
-function updateTicker() {
+async function fetchGoldPrice() {
+    try {
+        const res  = await fetchWithRetry(GOLD_URL);
+        const data = await res.json();
+        goldCurrentPrice = data['pax-gold'].usd;
+        goldChange24h    = data['pax-gold'].usd_24h_change;
+
+        localStorage.setItem(GOLD_CACHE_KEY, JSON.stringify({
+            price: goldCurrentPrice, change24h: goldChange24h, timestamp: Date.now()
+        }));
+
+        updateGoldTicker();
+        updateGoldComparison();
+    } catch (err) {
+        console.error('Gold fetch error:', err);
+        const cached = loadGoldCache();
+        if (cached) {
+            goldCurrentPrice = cached.price;
+            goldChange24h    = cached.change24h;
+            const mins = Math.round((Date.now() - cached.timestamp) / 60000);
+            updateGoldTicker();
+            updateGoldComparison();
+            goldRefreshEl.textContent = `Cached (${mins < 1 ? '<1' : mins} min old)`;
+        }
+    }
+}
+
+function loadGoldCache() {
+    try { return JSON.parse(localStorage.getItem(GOLD_CACHE_KEY)); } catch { return null; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Update tickers
+// ─────────────────────────────────────────────────────────────────────────────
+function updateBtcTicker() {
     if (currentPrice == null) return;
     livePriceEl.textContent = fmtUSD(currentPrice);
-
     if (change24h != null) {
-        const sign = change24h >= 0 ? '+' : '';
-        priceChangeEl.textContent = `${sign}${change24h.toFixed(2)}% (24h)`;
+        priceChangeEl.textContent = `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}% (24h)`;
         priceChangeEl.className = `price-change ${change24h >= 0 ? 'up' : 'down'}`;
+    }
+}
+
+function updateGoldTicker() {
+    if (goldCurrentPrice == null) return;
+    goldPriceEl.textContent = fmtUSD(goldCurrentPrice);
+    if (goldChange24h != null) {
+        goldChangeEl.textContent = `${goldChange24h >= 0 ? '+' : ''}${goldChange24h.toFixed(2)}% (24h)`;
+        goldChangeEl.className = `price-change ${goldChange24h >= 0 ? 'up' : 'down'}`;
     }
 }
 
@@ -582,63 +779,43 @@ function startRefreshCycle() {
     refreshTimer = setInterval(() => {
         secondsLeft = 60;
         fetchBtcPrice();
+        fetchGoldPrice();
     }, REFRESH_MS);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Calculator — bidirectional conversion
 // ─────────────────────────────────────────────────────────────────────────────
-btcInput.addEventListener('input', () => {
-    lastEdited = 'btc';
-    recalculate();
-});
-
-usdInput.addEventListener('input', () => {
-    lastEdited = 'usd';
-    recalculate();
-});
+btcInput.addEventListener('input', () => { lastEdited = 'btc'; recalculate(); });
+usdInput.addEventListener('input', () => { lastEdited = 'usd'; recalculate(); });
 
 function recalculate() {
     if (currentPrice == null) return;
-
     if (lastEdited === 'btc') {
         const btc = parseFloat(btcInput.value);
-        if (!isNaN(btc) && btc >= 0) {
-            usdInput.value = (btc * currentPrice).toFixed(2);
-        } else {
-            usdInput.value = '';
-        }
+        usdInput.value = (!isNaN(btc) && btc >= 0) ? (btc * currentPrice).toFixed(2) : '';
     } else {
         const usd = parseFloat(usdInput.value);
-        if (!isNaN(usd) && usd >= 0) {
-            btcInput.value = fmtBTC(usd / currentPrice);
-        } else {
-            btcInput.value = '';
-        }
+        btcInput.value = (!isNaN(usd) && usd >= 0) ? fmtBTC(usd / currentPrice) : '';
     }
-
     updateProjections();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Future price projections
+// Custom targets
 // ─────────────────────────────────────────────────────────────────────────────
 function getCustomTargets() {
-    try {
-        return JSON.parse(localStorage.getItem(TARGETS_KEY)) || [];
-    } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(TARGETS_KEY)) || []; } catch { return []; }
 }
-
-function saveCustomTargets(targets) {
-    localStorage.setItem(TARGETS_KEY, JSON.stringify(targets));
-}
+function saveCustomTargets(t) { localStorage.setItem(TARGETS_KEY, JSON.stringify(t)); }
 
 function addCustomTarget() {
     const val = parseFloat(customTargetIn.value);
     if (isNaN(val) || val <= 0) return;
     const rounded = Math.round(val);
     const customs = getCustomTargets();
-    if (!customs.includes(rounded) && !DEFAULT_TARGETS.includes(rounded)) {
+    const allFixed = [...DEFAULT_TARGETS, ATH_2025];
+    if (!customs.includes(rounded) && !allFixed.includes(rounded)) {
         customs.push(rounded);
         saveCustomTargets(customs);
     }
@@ -646,58 +823,137 @@ function addCustomTarget() {
     updateProjections();
 }
 
-// Allow Enter key to add target
 customTargetIn.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); addCustomTarget(); }
 });
 
 function removeCustomTarget(price) {
-    const customs = getCustomTargets().filter(t => t !== price);
-    saveCustomTargets(customs);
+    saveCustomTargets(getCustomTargets().filter(t => t !== price));
     updateProjections();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Build sorted point list — each entry has { price, label, type }
+// types: 'default' | 'ath' | 'custom' | 'current'
+// ─────────────────────────────────────────────────────────────────────────────
+function buildPoints() {
+    const customs = getCustomTargets();
+    const points  = [];
+
+    // Default targets
+    for (const p of DEFAULT_TARGETS) {
+        points.push({ price: p, label: '$' + (p / 1000).toFixed(0) + 'K', type: 'default' });
+    }
+
+    // 2025 ATH
+    points.push({ price: ATH_2025, label: '$126.2K (2025 ATH)', type: 'ath' });
+
+    // Custom targets
+    for (const p of customs) {
+        const k = p >= 1000 ? '$' + (p / 1000).toFixed(0) + 'K' : '$' + p;
+        points.push({ price: p, label: k, type: 'custom' });
+    }
+
+    // Current price — insert into sorted position
+    if (currentPrice != null) {
+        // Only add if not already very close to an existing point
+        const exists = points.some(pt => Math.abs(pt.price - currentPrice) < 500);
+        if (!exists) {
+            points.push({ price: currentPrice, label: 'Current', type: 'current' });
+        }
+    }
+
+    // Sort ascending by price
+    points.sort((a, b) => a.price - b.price);
+    return points;
+}
+
+function pointColor(type) {
+    if (type === 'ath')    return '#1a1a1a';   // near-black
+    if (type === 'custom') return '#007bff';   // blue
+    if (type === 'current') {
+        return currentPrice >= ATH_2025 ? '#1a9e4a' : '#d32f2f';
+    }
+    return '#f7931a'; // orange for defaults
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Future price projections — table + chart
+// ─────────────────────────────────────────────────────────────────────────────
 function updateProjections() {
     if (currentPrice == null) return;
 
-    const btcAmount = parseFloat(btcInput.value) || 0;
-    const customs = getCustomTargets();
-    const allTargets = [...DEFAULT_TARGETS, ...customs].sort((a, b) => a - b);
+    const btcAmount  = parseFloat(btcInput.value) || 0;
+    const currentVal = btcAmount * currentPrice;
+    const customs    = getCustomTargets();
+    const points     = buildPoints();
 
-    // Build table rows
     let html = '';
-    const labels = [];
-    const values = [];
-    const barColors = [];
+    const chartLabels = [];
+    const chartValues = [];
+    const chartColors = [];
 
-    // Add current price row
-    const currentValue = btcAmount * currentPrice;
-
-    for (const target of allTargets) {
-        const holdingsValue = btcAmount * target;
-        const changePct = ((target - currentPrice) / currentPrice) * 100;
-        const changeDollar = holdingsValue - currentValue;
-        const isCustom = customs.includes(target);
-        const isCurrent = Math.abs(target - currentPrice) < 100;
-
+    for (const pt of points) {
+        const holdingsVal = btcAmount * pt.price;
+        const changePct   = ((pt.price - currentPrice) / currentPrice) * 100;
+        const changeDollar = holdingsVal - currentVal;
         const changeClass = changePct >= 0 ? 'positive' : 'negative';
-        const sign = changeDollar >= 0 ? '+' : '';
+        const sign        = changeDollar >= 0 ? '+' : '';
 
-        html += `<tr class="${isCurrent ? 'current-row' : ''}">`;
-        html += `<td>${fmtUSD(target)}${isCustom ? ' <button class="btn-sm btn-danger" onclick="removeCustomTarget('+target+')" title="Remove">&times;</button>' : ''}</td>`;
-        html += `<td>${fmtUSD(holdingsValue)}</td>`;
+        // Market cap estimate
+        const estMktCap = btcCirculatingSupply ? fmtMarketCap(btcCirculatingSupply * pt.price) : '--';
+
+        // Row label
+        let priceLabel = fmtUSD(pt.price);
+        let rowClass   = '';
+        let removeBtn  = '';
+
+        if (pt.type === 'ath') {
+            priceLabel = `${fmtUSD(pt.price)} <span style="font-size:11px;color:#555;font-weight:600;">(2025 ATH)</span>`;
+            rowClass   = 'ath-row';
+        } else if (pt.type === 'current') {
+            priceLabel = `${fmtUSD(pt.price)} <span style="font-size:11px;color:#888;font-weight:600;">(current)</span>`;
+            rowClass   = 'current-row';
+        } else if (pt.type === 'custom') {
+            removeBtn = ` <button class="btn-sm btn-danger" onclick="removeCustomTarget(${pt.price})" title="Remove">&times;</button>`;
+        }
+
+        html += `<tr class="${rowClass}">`;
+        html += `<td>${priceLabel}${removeBtn}</td>`;
+        html += `<td>${fmtUSD(holdingsVal)}</td>`;
         html += `<td class="${changeClass}">${fmtPct(changePct)} (${sign}${fmtUSD(Math.abs(changeDollar))})</td>`;
+        html += `<td>${estMktCap}</td>`;
         html += `</tr>`;
 
-        labels.push('$' + (target >= 1000 ? (target / 1000).toFixed(0) + 'K' : target));
-        values.push(holdingsValue);
-        barColors.push(isCustom ? '#007bff' : '#f7931a');
+        chartLabels.push(pt.type === 'current' ? 'Now' : pt.label);
+        chartValues.push(holdingsVal);
+        chartColors.push(pointColor(pt.type));
     }
 
     projectionBody.innerHTML = html;
+    updateChart(chartLabels, chartValues, chartColors);
+}
 
-    // Update chart
-    updateChart(labels, values, barColors);
+// ─────────────────────────────────────────────────────────────────────────────
+// Gold vs BTC market cap comparison
+// ─────────────────────────────────────────────────────────────────────────────
+function updateGoldComparison() {
+    if (goldCurrentPrice == null || btcCirculatingSupply == null) return;
+
+    const goldMktCap    = goldCurrentPrice * TOTAL_GOLD_OZ;
+    const btcMktCapVal  = btcMarketCap || (currentPrice ? currentPrice * btcCirculatingSupply : null);
+    const parityPrice   = btcCirculatingSupply ? goldMktCap / btcCirculatingSupply : null;
+    const pctNeeded     = parityPrice && currentPrice ? ((parityPrice - currentPrice) / currentPrice) * 100 : null;
+    const dominance     = btcMktCapVal ? (btcMktCapVal / goldMktCap) * 100 : null;
+
+    goldMktCapEl.textContent   = fmtMarketCap(goldMktCap);
+    btcMktCapEl.textContent    = btcMktCapVal ? fmtMarketCap(btcMktCapVal) : '--';
+    btcSupplyEl.textContent    = btcCirculatingSupply ? fmtSupply(btcCirculatingSupply) + ' in circulation' : '--';
+    btcVsGoldEl.textContent    = dominance != null ? dominance.toFixed(2) + '%' : '--';
+    btcParityEl.textContent    = parityPrice ? fmtUSD(parityPrice) : '--';
+    btcParityPctEl.textContent = pctNeeded != null
+        ? `${pctNeeded >= 0 ? '+' : ''}${pctNeeded.toFixed(1)}% from current`
+        : 'required increase: --';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -705,28 +961,23 @@ function updateProjections() {
 // ─────────────────────────────────────────────────────────────────────────────
 function updateChart(labels, values, pointColors) {
     const ctx = document.getElementById('projectionChart');
-
-    // Destroy and recreate to cleanly handle added/removed points
-    if (projChart) {
-        projChart.destroy();
-        projChart = null;
-    }
+    if (projChart) { projChart.destroy(); projChart = null; }
 
     projChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: labels,
+            labels,
             datasets: [{
                 label: 'Holdings Value (USD)',
                 data: values,
                 borderColor: '#f7931a',
-                backgroundColor: 'rgba(247, 147, 26, 0.1)',
+                backgroundColor: 'rgba(247, 147, 26, 0.08)',
                 fill: true,
                 tension: 0.3,
                 pointBackgroundColor: pointColors,
                 pointBorderColor: pointColors,
-                pointRadius: 6,
-                pointHoverRadius: 9,
+                pointRadius: 7,
+                pointHoverRadius: 10,
                 borderWidth: 2.5,
             }]
         },
@@ -737,25 +988,22 @@ function updateChart(labels, values, pointColors) {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
-                        title: function(items) {
-                            return 'BTC @ ' + items[0].label;
-                        },
-                        label: function(ctx) {
-                            return ' Value: ' + fmtUSD(ctx.raw);
-                        }
+                        title: (items) => 'BTC @ ' + items[0].label,
+                        label: (ctx)   => ' Value: ' + fmtUSD(ctx.raw)
                     }
                 }
             },
             scales: {
                 x: {
                     grid: { color: '#f0f0f0' },
-                    ticks: { maxRotation: 45 }
+                    ticks: { maxRotation: 45, font: { size: 11 } }
                 },
                 y: {
                     ticks: {
-                        callback: function(val) {
-                            if (val >= 1000000) return '$' + (val / 1000000).toFixed(1) + 'M';
-                            if (val >= 1000)    return '$' + (val / 1000).toFixed(0) + 'K';
+                        callback: (val) => {
+                            if (val >= 1e9)  return '$' + (val / 1e9).toFixed(1) + 'B';
+                            if (val >= 1e6)  return '$' + (val / 1e6).toFixed(1) + 'M';
+                            if (val >= 1000) return '$' + (val / 1000).toFixed(0) + 'K';
                             return '$' + val;
                         }
                     },
@@ -770,18 +1018,29 @@ function updateChart(labels, values, pointColors) {
 // Init
 // ─────────────────────────────────────────────────────────────────────────────
 (async function init() {
-    // Load cached price immediately for instant display
-    const cached = loadCache();
-    if (cached && (Date.now() - cached.timestamp) < 120000) {
-        currentPrice = cached.price;
-        change24h    = cached.change24h;
-        updateTicker();
+    // Show cached BTC immediately
+    const cachedBtc = loadBtcCache();
+    if (cachedBtc && (Date.now() - cachedBtc.timestamp) < 120000) {
+        currentPrice         = cachedBtc.price;
+        change24h            = cachedBtc.change24h;
+        btcMarketCap         = cachedBtc.marketCap || null;
+        btcCirculatingSupply = btcMarketCap ? btcMarketCap / currentPrice : null;
+        updateBtcTicker();
         recalculate();
         setStatus('ok', `Cached price &mdash; refreshing&hellip;`);
     }
 
-    // Fetch fresh price
-    await fetchBtcPrice();
+    // Show cached gold immediately
+    const cachedGold = loadGoldCache();
+    if (cachedGold && (Date.now() - cachedGold.timestamp) < 120000) {
+        goldCurrentPrice = cachedGold.price;
+        goldChange24h    = cachedGold.change24h;
+        updateGoldTicker();
+        updateGoldComparison();
+    }
+
+    // Fetch both fresh in parallel
+    await Promise.all([fetchBtcPrice(), fetchGoldPrice()]);
 
     // Start auto-refresh
     startRefreshCycle();
