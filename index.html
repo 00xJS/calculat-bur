@@ -840,13 +840,9 @@ function buildPoints() {
         points.push({ price: p, label: k, type: 'custom' });
     }
 
-    // Current price — insert into sorted position
+    // Current price — always insert, sorted into correct position
     if (currentPrice != null) {
-        // Only add if not already very close to an existing point
-        const exists = points.some(pt => Math.abs(pt.price - currentPrice) < 500);
-        if (!exists) {
-            points.push({ price: currentPrice, label: 'Current', type: 'current' });
-        }
+        points.push({ price: currentPrice, label: 'Current', type: 'current' });
     }
 
     // Sort ascending by price
