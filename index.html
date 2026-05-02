@@ -10,8 +10,6 @@
             --primary:      #f7931a;
             --primary-dark: #c96f0d;
             --blue:         #007bff;
-            --gold:         #d4a017;
-            --gold-light:   #fffbee;
             --border:       #ddd;
             --bg:           #f4f5f7;
             --card:         #ffffff;
@@ -314,52 +312,6 @@
             border-radius: 10px;
         }
 
-        /* ── Gold comparison card ── */
-        .gold-comparison {
-            margin-top: 10px;
-            padding: 20px;
-            background: linear-gradient(135deg, #fefbf0 0%, #fffef9 100%);
-            border: 1.5px solid #d4a017;
-            border-radius: 12px;
-        }
-        .gold-comparison h3 {
-            margin: 0 0 14px;
-            font-size: 1rem;
-            color: var(--text);
-        }
-        .gold-stat-row {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            margin-bottom: 0;
-        }
-        .gold-stat {
-            min-width: 0;
-            text-align: center;
-            padding: 12px 10px;
-            background: white;
-            border: 1px solid #e8d88a;
-            border-radius: 8px;
-        }
-        .gold-stat .stat-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-            color: var(--muted);
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-        .gold-stat .stat-value {
-            font-size: 1.1rem;
-            font-weight: 800;
-            color: var(--text);
-        }
-        .gold-stat .stat-sub {
-            font-size: 11.5px;
-            color: var(--muted);
-            margin-top: 2px;
-        }
-
         /* ── Footer ── */
         .footer {
             text-align: center;
@@ -393,7 +345,6 @@
             .calc-fields { flex-direction: column; align-items: center; }
             input { width: 230px; }
             .chart-container { height: 280px; }
-            .gold-stat-row { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
 </head>
@@ -469,55 +420,6 @@
         <span><span class="legend-dot" style="background:#1a9e4a"></span>Current price (above ATH)</span>
     </div>
 
-    <!-- ── Gold vs Bitcoin Market Cap ── -->
-    <h2>Gold vs Bitcoin</h2>
-    <div class="gold-comparison">
-        <div class="gold-stat-row">
-            <!-- Row 1 -->
-            <div class="gold-stat">
-                <div class="stat-label">Gold Price</div>
-                <div class="stat-value" id="goldPriceCard">--</div>
-                <div class="stat-sub" id="goldChangeCard">per troy oz</div>
-            </div>
-            <div class="gold-stat">
-                <div class="stat-label">Gold Market Cap</div>
-                <div class="stat-value" id="goldMktCap">--</div>
-                <div class="stat-sub">~6.835B oz above ground</div>
-            </div>
-            <div class="gold-stat">
-                <div class="stat-label">Gold oz per 1 BTC</div>
-                <div class="stat-value" id="goldOzPerBtc">--</div>
-                <div class="stat-sub">oz of gold = 1 bitcoin</div>
-            </div>
-            <div class="gold-stat">
-                <div class="stat-label">BTC % of Gold</div>
-                <div class="stat-value" id="btcVsGoldPct">--</div>
-                <div class="stat-sub">market cap dominance</div>
-            </div>
-            <!-- Row 2 -->
-            <div class="gold-stat">
-                <div class="stat-label">BTC at Gold Parity</div>
-                <div class="stat-value" id="btcParityPrice">--</div>
-                <div class="stat-sub" id="btcParityPct">required increase: --</div>
-            </div>
-            <div class="gold-stat">
-                <div class="stat-label">Bitcoin Market Cap</div>
-                <div class="stat-value" id="btcMktCap">--</div>
-                <div class="stat-sub" id="btcSupply">-- BTC in circulation</div>
-            </div>
-            <div class="gold-stat">
-                <div class="stat-label">BTC Supply in Gold oz</div>
-                <div class="stat-value" id="btcSupplyInGold">--</div>
-                <div class="stat-sub">all BTC valued in gold oz</div>
-            </div>
-            <div class="gold-stat">
-                <div class="stat-label">Gold/BTC Ratio</div>
-                <div class="stat-value" id="goldMultiple">--</div>
-                <div class="stat-sub">gold mkt cap vs bitcoin</div>
-            </div>
-        </div>
-    </div>
-
     <footer class="footer">
         <p>
             <a href="https://observation-deck.netlify.app/">Observation Deck</a> &nbsp;|&nbsp;
@@ -531,7 +433,6 @@
             <strong>Not financial advice.</strong> This tool is for educational and informational purposes only.
             Bitcoin is a highly volatile asset &mdash;
             always conduct your own research before making any investment decisions.
-            Gold market cap estimate based on ~212,582 tonnes of above-ground gold (World Gold Council).
         </div>
     </footer>
 
@@ -542,18 +443,13 @@
 // Configuration
 // ─────────────────────────────────────────────────────────────────────────────
 const BTC_URL        = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_market_cap=true';
-const GOLD_URL       = 'https://api.coingecko.com/api/v3/simple/price?ids=pax-gold&vs_currencies=usd&include_24hr_change=true';
 const REFRESH_MS     = 60000;
 const CACHE_KEY      = 'calculat-burr-btc-price';
-const GOLD_CACHE_KEY = 'calculat-burr-gold-price';
 const TARGETS_KEY    = 'calculat-burr-custom-targets';
 
 // 2025 All-Time High — special pinned target
 const ATH_2025        = 126198.07;
 const DEFAULT_TARGETS = [50000, 75000, 100000, 150000, 200000, 250000, 500000, 1000000];
-
-// Total above-ground gold: ~212,582 tonnes × 32,150.7 troy oz/tonne
-const TOTAL_GOLD_OZ = 6_835_000_000;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DOM references
@@ -568,19 +464,6 @@ const usdInput       = document.getElementById('usdInput');
 const projectionBody = document.getElementById('projectionBody');
 const customTargetIn = document.getElementById('customTarget');
 
-// Gold comparison DOM
-const goldPriceCardEl    = document.getElementById('goldPriceCard');
-const goldChangeCardEl   = document.getElementById('goldChangeCard');
-const goldMktCapEl       = document.getElementById('goldMktCap');
-const btcMktCapEl        = document.getElementById('btcMktCap');
-const btcSupplyEl        = document.getElementById('btcSupply');
-const btcVsGoldEl        = document.getElementById('btcVsGoldPct');
-const btcParityEl        = document.getElementById('btcParityPrice');
-const btcParityPctEl     = document.getElementById('btcParityPct');
-const goldOzPerBtcEl     = document.getElementById('goldOzPerBtc');
-const btcSupplyInGoldEl  = document.getElementById('btcSupplyInGold');
-const goldMultipleEl     = document.getElementById('goldMultiple');
-
 // ─────────────────────────────────────────────────────────────────────────────
 // State
 // ─────────────────────────────────────────────────────────────────────────────
@@ -588,8 +471,6 @@ let currentPrice        = null;
 let change24h           = null;
 let btcMarketCap        = null;
 let btcCirculatingSupply = null;
-let goldCurrentPrice    = null;
-let goldChange24h       = null;
 let lastEdited          = 'btc';
 let refreshTimer        = null;
 let countdownTimer      = null;
@@ -707,36 +588,6 @@ function loadBtcCache() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fetch live Gold price via CoinGecko (Pax Gold = 1 troy oz of gold)
-// ─────────────────────────────────────────────────────────────────────────────
-async function fetchGoldPrice() {
-    try {
-        const res  = await fetchWithRetry(GOLD_URL);
-        const data = await res.json();
-        goldCurrentPrice = data['pax-gold'].usd;
-        goldChange24h    = data['pax-gold'].usd_24h_change;
-
-        localStorage.setItem(GOLD_CACHE_KEY, JSON.stringify({
-            price: goldCurrentPrice, change24h: goldChange24h, timestamp: Date.now()
-        }));
-
-        updateGoldComparison();
-    } catch (err) {
-        console.error('Gold fetch error:', err);
-        const cached = loadGoldCache();
-        if (cached) {
-            goldCurrentPrice = cached.price;
-            goldChange24h    = cached.change24h;
-            updateGoldComparison();
-        }
-    }
-}
-
-function loadGoldCache() {
-    try { return JSON.parse(localStorage.getItem(GOLD_CACHE_KEY)); } catch { return null; }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Update tickers
 // ─────────────────────────────────────────────────────────────────────────────
 function updateBtcTicker() {
@@ -765,7 +616,6 @@ function startRefreshCycle() {
     refreshTimer = setInterval(() => {
         secondsLeft = 60;
         fetchBtcPrice();
-        fetchGoldPrice();
     }, REFRESH_MS);
 }
 
@@ -917,71 +767,6 @@ function updateProjections() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Gold vs BTC market cap comparison — 8 stat boxes
-// ─────────────────────────────────────────────────────────────────────────────
-function updateGoldComparison() {
-    if (goldCurrentPrice == null) return;
-
-    const goldMktCap   = goldCurrentPrice * TOTAL_GOLD_OZ;
-    const btcMktCapVal = btcMarketCap || (currentPrice && btcCirculatingSupply ? currentPrice * btcCirculatingSupply : null);
-    const parityPrice  = btcCirculatingSupply ? goldMktCap / btcCirculatingSupply : null;
-    const pctNeeded    = parityPrice && currentPrice ? ((parityPrice - currentPrice) / currentPrice) * 100 : null;
-    const dominance    = btcMktCapVal ? (btcMktCapVal / goldMktCap) * 100 : null;
-
-    // oz of gold per 1 BTC
-    const ozPerBtc     = currentPrice && goldCurrentPrice ? currentPrice / goldCurrentPrice : null;
-
-    // All BTC in circulation valued in gold oz
-    const btcInGoldOz  = btcCirculatingSupply && currentPrice && goldCurrentPrice
-        ? (btcCirculatingSupply * currentPrice) / goldCurrentPrice : null;
-
-    // How many times larger gold's market cap is vs BTC
-    const goldMultiple = btcMktCapVal ? goldMktCap / btcMktCapVal : null;
-
-    // Box 1 — Gold price
-    goldPriceCardEl.textContent  = goldCurrentPrice ? fmtUSD(goldCurrentPrice) : '--';
-    if (goldChange24h != null) {
-        const sign = goldChange24h >= 0 ? '+' : '';
-        goldChangeCardEl.textContent = `${sign}${goldChange24h.toFixed(2)}% (24h) · per troy oz`;
-        goldChangeCardEl.style.color = goldChange24h >= 0 ? 'var(--success)' : 'var(--danger)';
-    } else {
-        goldChangeCardEl.textContent = 'per troy oz';
-        goldChangeCardEl.style.color = '';
-    }
-
-    // Box 2 — Gold market cap
-    goldMktCapEl.textContent = fmtMarketCap(goldMktCap);
-
-    // Box 3 — BTC market cap
-    btcMktCapEl.textContent = btcMktCapVal ? fmtMarketCap(btcMktCapVal) : '--';
-    btcSupplyEl.textContent = btcCirculatingSupply ? fmtSupply(btcCirculatingSupply) + ' in circulation' : '--';
-
-    // Box 4 — BTC % of Gold
-    btcVsGoldEl.textContent = dominance != null ? dominance.toFixed(2) + '%' : '--';
-
-    // Box 5 — BTC at Gold Parity
-    btcParityEl.textContent    = parityPrice ? fmtUSD(parityPrice) : '--';
-    btcParityPctEl.textContent = pctNeeded != null
-        ? `${pctNeeded >= 0 ? '+' : ''}${pctNeeded.toFixed(1)}% from current`
-        : 'required increase: --';
-
-    // Box 6 — Gold oz per 1 BTC
-    goldOzPerBtcEl.textContent = ozPerBtc != null
-        ? ozPerBtc.toFixed(2) + ' oz'
-        : '--';
-
-    // Box 7 — BTC supply in gold oz
-    btcSupplyInGoldEl.textContent = btcInGoldOz != null
-        ? Number(btcInGoldOz.toFixed(0)).toLocaleString('en-US') + ' oz'
-        : '--';
-
-    // Box 8 — Gold market cap multiple vs BTC
-    goldMultipleEl.textContent = goldMultiple != null
-        ? goldMultiple.toFixed(1) + '×'
-        : '--';
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Chart.js — line chart
 // ─────────────────────────────────────────────────────────────────────────────
 function updateChart(labels, values, pointColors) {
@@ -1055,16 +840,8 @@ function updateChart(labels, values, pointColors) {
         setStatus('ok', `Cached price &mdash; refreshing&hellip;`);
     }
 
-    // Show cached gold immediately
-    const cachedGold = loadGoldCache();
-    if (cachedGold && (Date.now() - cachedGold.timestamp) < 120000) {
-        goldCurrentPrice = cachedGold.price;
-        goldChange24h    = cachedGold.change24h;
-        updateGoldComparison();
-    }
-
-    // Fetch both fresh in parallel
-    await Promise.all([fetchBtcPrice(), fetchGoldPrice()]);
+    // Fetch fresh BTC price
+    await fetchBtcPrice();
 
     // Start auto-refresh
     startRefreshCycle();

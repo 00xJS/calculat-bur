@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Read(//opt/homebrew/**)",
+      "Read(//usr/local/bin/**)",
+      "Read(//Users/joseph/Desktop/github/Project 401k/.claude/**)",
+      "Bash(open \"/Users/joseph/Desktop/github/Project Calculat-Burr/index.html\")"
+    ]
+  }
+}
