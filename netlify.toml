@@ -1,4 +1,15 @@
+# The previous rule here set Cache-Control for /data/*, a path this site does not have.
+# Netlify already serves HTML with must-revalidate, so these are security headers instead.
+#
+# CSP notes: the page is a single file with an inline <style>, an inline <script>, and
+# inline onclick handlers, so 'unsafe-inline' is required for script-src and style-src.
+# Everything else is locked down: one CDN for Chart.js, one API for pricing, data: for
+# the emoji-SVG favicon.
 [[headers]]
-  for = "/data/*"
+  for = "/*"
   [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+    Content-Security-Policy = "default-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://api.coingecko.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"

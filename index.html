@@ -5,8 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0a0d1c">
     <title>&#8383;itcoin Calculator</title>
+
+    <meta name="description" content="Convert Bitcoin to US dollars at the live market price, and see what a holding would be worth at price targets from $50K to $1M. Live pricing from CoinGecko.">
+    <link rel="canonical" href="https://calculat-bur.netlify.app/">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://calculat-bur.netlify.app/">
+    <meta property="og:title" content="Bitcoin Calculator">
+    <meta property="og:description" content="Convert BTC to USD at the live market price, and see what a holding would be worth at price targets from $50K to $1M.">
+    <meta property="og:site_name" content="Observation Deck">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Bitcoin Calculator">
+    <meta name="twitter:description" content="Convert BTC to USD at the live market price, and see what a holding would be worth at price targets from $50K to $1M.">
+
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>&#129518;</text></svg>">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Pinned + integrity-checked: an unversioned CDN URL floats to the next major
+         and would break this page with no deploy and no warning. -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
+            integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ"
+            crossorigin="anonymous"></script>
     <style>
         /* ═══ Observation Deck design tokens ═══ */
         :root {
@@ -291,6 +309,7 @@
             border: 1px solid var(--border);
             border-radius: var(--radius-control);
             width: 200px;
+            max-width: 100%;
             background: var(--card-chrome);
             color: var(--text);
             font-variant-numeric: tabular-nums;
@@ -387,7 +406,9 @@
             margin-top: 14px;
             flex-wrap: wrap;
         }
-        .add-target input { width: 180px; }
+        /* 240px, not 180px: the monospace stack renders the full
+           "Custom price target ($)" placeholder at ~220px */
+        .add-target input { width: 240px; }
 
         button {
             font-family: var(--font-sans);
@@ -679,12 +700,12 @@
 
     <footer class="footer">
         <p>
-            <a href="https://observation-deck.netlify.app/">Observation Deck</a> &nbsp;|&nbsp;
+            <a href="https://observation-deck.netlify.app/">Observation Deck</a> &nbsp;&middot;&nbsp;
             <a href="https://github.com/00xJS/calculat-bur">GitHub</a>
         </p>
         <p>
             Live data from <a href="https://www.coingecko.com/" target="_blank" rel="noopener">CoinGecko</a>
-            &bull; Auto-refreshes every 60 seconds
+            &middot; Auto-refreshes every 60 seconds
         </p>
         <div class="disclaimer">
             <strong>Not financial advice.</strong> This tool is for educational and informational purposes only.
@@ -704,9 +725,14 @@ const REFRESH_MS     = 60000;
 const CACHE_KEY      = 'calculat-burr-btc-price';
 const TARGETS_KEY    = 'calculat-burr-custom-targets';
 
-// 2025 All-Time High — special pinned target
+// 2025 All-Time High — special pinned target.
+// Hardcoded deliberately: this is a fixed historical reference, not a live figure.
+// Source: CoinGecko 2025 high. Last verified 2026-08-01 — update by hand if BTC sets a new record.
 const ATH_2025        = 126198.07;
 const DEFAULT_TARGETS = [50000, 75000, 100000, 150000, 200000, 250000, 500000, 1000000];
+
+// A cached price older than this is stale enough to be misleading — show an error instead
+const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Deck theme — read the design tokens once, share them with Chart.js
@@ -790,6 +816,15 @@ function fmtSupply(n) {
     return Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' BTC';
 }
 
+// "4320 min" is not a useful thing to tell someone
+function fmtAge(ms) {
+    const mins = Math.round(ms / 60000);
+    if (mins < 1)  return '<1 min';
+    if (mins < 60) return `${mins} min`;
+    const hrs = Math.round(mins / 60);
+    return hrs === 1 ? '1 hour' : `${hrs} hours`;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Status chip
 // ─────────────────────────────────────────────────────────────────────────────
@@ -860,9 +895,16 @@ async function fetchBtcPrice() {
         btcMarketCap        = data.bitcoin.usd_market_cap;
         btcCirculatingSupply = btcMarketCap / currentPrice;
 
-        localStorage.setItem(CACHE_KEY, JSON.stringify({
-            price: currentPrice, change24h, marketCap: btcMarketCap, timestamp: Date.now()
-        }));
+        // Caching is best-effort. Left unguarded, a storage failure (Safari private
+        // browsing, quota, storage disabled) threw into the catch below and reported a
+        // perfectly good live price as a failed update.
+        try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({
+                price: currentPrice, change24h, marketCap: btcMarketCap, timestamp: Date.now()
+            }));
+        } catch (storageErr) {
+            console.warn('Could not cache BTC price:', storageErr.message);
+        }
 
         setConverterEnabled(true);
         updateBtcTicker();
@@ -871,16 +913,16 @@ async function fetchBtcPrice() {
     } catch (err) {
         console.error('BTC fetch error:', err);
         const cached = loadBtcCache();
-        if (cached) {
+        const cacheAge = cached ? Date.now() - cached.timestamp : Infinity;
+        if (cached && cacheAge < MAX_CACHE_AGE_MS) {
             currentPrice         = cached.price;
             change24h            = cached.change24h;
             btcMarketCap         = cached.marketCap || null;
             btcCirculatingSupply = btcMarketCap ? btcMarketCap / currentPrice : null;
-            const mins = Math.round((Date.now() - cached.timestamp) / 60000);
             setConverterEnabled(true);
             updateBtcTicker();
             recalculate();
-            setStatus('stale', `Cached price (${mins < 1 ? '<1' : mins} min old) &mdash; live update failed`);
+            setStatus('stale', `Cached price (${fmtAge(cacheAge)} old) &mdash; live update failed`);
         } else {
             setConverterEnabled(false);
             showEmptyProjections();
@@ -925,6 +967,24 @@ function startRefreshCycle() {
     }, REFRESH_MS);
 }
 
+function stopRefreshCycle() {
+    clearInterval(refreshTimer);
+    clearInterval(countdownTimer);
+    refreshTimer = countdownTimer = null;
+}
+
+// A backgrounded tab polling a free, unauthenticated API every 60s forever helps nobody.
+// Pause while hidden, then catch up immediately on return.
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        stopRefreshCycle();
+        refreshInfoEl.textContent = 'Paused while this tab is in the background';
+    } else {
+        fetchBtcPrice();
+        startRefreshCycle();
+    }
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Calculator — bidirectional conversion
 // ─────────────────────────────────────────────────────────────────────────────
@@ -946,10 +1006,33 @@ function recalculate() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Custom targets
 // ─────────────────────────────────────────────────────────────────────────────
+// In-memory copy is the source of truth for the session; localStorage is best-effort,
+// so the page still works where storage throws (Safari private browsing, quota, policy).
+let customTargetsCache = null;
+
 function getCustomTargets() {
-    try { return JSON.parse(localStorage.getItem(TARGETS_KEY)) || []; } catch { return []; }
+    if (customTargetsCache) return customTargetsCache;
+    try {
+        const raw = JSON.parse(localStorage.getItem(TARGETS_KEY));
+        // A non-array here (hand-edited storage, a future format change) used to throw
+        // "customs is not iterable" out of buildPoints and take the whole page down.
+        customTargetsCache = Array.isArray(raw) ? raw.filter(Number.isFinite) : [];
+    } catch {
+        customTargetsCache = [];
+    }
+    return customTargetsCache;
 }
-function saveCustomTargets(t) { localStorage.setItem(TARGETS_KEY, JSON.stringify(t)); }
+
+function saveCustomTargets(t) {
+    customTargetsCache = t.filter(Number.isFinite);
+    try {
+        localStorage.setItem(TARGETS_KEY, JSON.stringify(customTargetsCache));
+        return true;
+    } catch (err) {
+        console.warn('Could not persist custom targets:', err.message);
+        return false;
+    }
+}
 
 let feedbackTimer = null;
 function setTargetFeedback(msg, kind) {
@@ -967,14 +1050,18 @@ function addCustomTarget() {
     }
     const rounded = Math.round(val);
     const customs = getCustomTargets();
-    const allFixed = [...DEFAULT_TARGETS, ATH_2025];
+    // Math.round(ATH_2025) — comparing the raw 126198.07 against a rounded integer meant
+    // this guard could never fire, so entering 126198 stacked a duplicate on the ATH row.
+    const allFixed = [...DEFAULT_TARGETS, Math.round(ATH_2025)];
     if (customs.includes(rounded) || allFixed.includes(rounded)) {
         // Silently swallowing this made a rejected add look identical to a successful one
         setTargetFeedback(`${fmtUSD(rounded)} is already in the table.`, 'rejected');
     } else {
         customs.push(rounded);
-        saveCustomTargets(customs);
-        setTargetFeedback(`Added ${fmtUSD(rounded)} to the table.`, 'added');
+        const saved = saveCustomTargets(customs);
+        setTargetFeedback(saved
+            ? `Added ${fmtUSD(rounded)} to the table.`
+            : `Added ${fmtUSD(rounded)} — but it can't be saved for next visit.`, 'added');
     }
     customTargetIn.value = '';
     updateProjections();
@@ -1107,7 +1194,18 @@ function updateProjections() {
 function updateChart(labels, values, pointColors) {
     const ctx = document.getElementById('projectionChart');
     const t   = getDeckTheme();
-    if (projChart) { projChart.destroy(); projChart = null; }
+
+    // Mutate in place rather than tearing down and rebuilding the whole chart on every
+    // keystroke. 'none' skips the animation so typing stays responsive.
+    if (projChart) {
+        const ds = projChart.data.datasets[0];
+        projChart.data.labels     = labels;
+        ds.data                   = values;
+        ds.pointBackgroundColor   = pointColors;
+        ds.pointBorderColor       = pointColors;
+        projChart.update('none');
+        return;
+    }
 
     projChart = new Chart(ctx, {
         type: 'line',
