@@ -4,19 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0a0d1c">
-    <title>&#8383;itcoin Calculator</title>
+    <!-- Plain ASCII: this string is the browser tab, bookmarks, history, the screen-reader
+         document title and the search result. The ₿ glyph stays in the H1, where an
+         sr-only "B" makes it safe. -->
+    <title>Bitcoin Calculator</title>
 
-    <meta name="description" content="Convert Bitcoin to US dollars at the live market price, and see what a holding would be worth at price targets from $50K to $1M. Live pricing from CoinGecko.">
+    <meta name="description" content="Convert Bitcoin to US dollars at the live market price, and see what a holding would be worth at targets from $50K to $1M — or add your own. Each target shows the Bitcoin market cap it would imply. Live pricing from CoinGecko.">
     <link rel="canonical" href="https://calculat-bur.netlify.app/">
 
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://calculat-bur.netlify.app/">
     <meta property="og:title" content="Bitcoin Calculator">
-    <meta property="og:description" content="Convert BTC to USD at the live market price, and see what a holding would be worth at price targets from $50K to $1M.">
+    <meta property="og:description" content="Convert BTC to USD at the live market price, and see what a holding would be worth at targets from $50K to $1M — or add your own. Each target shows the market cap it would imply.">
     <meta property="og:site_name" content="Observation Deck">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="Bitcoin Calculator">
-    <meta name="twitter:description" content="Convert BTC to USD at the live market price, and see what a holding would be worth at price targets from $50K to $1M.">
+    <meta name="twitter:description" content="Convert BTC to USD at the live market price, and see what a holding would be worth at targets from $50K to $1M — or add your own. Each target shows the market cap it would imply.">
 
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>&#129518;</text></svg>">
 
@@ -592,7 +595,7 @@
 
     <a class="kicker" href="https://observation-deck.netlify.app/">Observation Deck / Calculat-Bur</a>
     <h1><span class="btc-glyph" aria-hidden="true">&#8383;</span><span class="sr-only">B</span>itcoin Calculator</h1>
-    <p class="subtitle">Real-time BTC/USD converter with future price projections</p>
+    <p class="subtitle">Real-time BTC/USD converter &mdash; see a holding's value at any price target</p>
 
     <noscript>
         <div class="noscript-note">
@@ -750,9 +753,13 @@ function getDeckTheme() {
         card: v('--card'), tooltipBg: v('--bg-raised'), border: v('--border'),
         fontSans: v('--font-sans'), fontMono: v('--font-mono'),
     };
-    Chart.defaults.color       = deckTheme.muted;
-    Chart.defaults.borderColor = deckTheme.grid;
-    Chart.defaults.font.family = deckTheme.fontSans;
+    // Chart.js comes from a CDN and may simply not be there (offline, blocked, CDN down).
+    // The tokens are still useful for the table, so degrade instead of throwing.
+    if (typeof Chart !== 'undefined') {
+        Chart.defaults.color       = deckTheme.muted;
+        Chart.defaults.borderColor = deckTheme.grid;
+        Chart.defaults.font.family = deckTheme.fontSans;
+    }
     return deckTheme;
 }
 
@@ -907,9 +914,11 @@ async function fetchBtcPrice() {
         }
 
         setConverterEnabled(true);
+        // Status first: it reports the state of the FETCH, so a later rendering error
+        // must not be able to leave it stuck on "Fetching latest BTC price…".
+        setStatus('ok', `Live price &mdash; ${fmtUSD(currentPrice)}`);
         updateBtcTicker();
         recalculate();
-        setStatus('ok', `Live price &mdash; ${fmtUSD(currentPrice)}`);
     } catch (err) {
         console.error('BTC fetch error:', err);
         const cached = loadBtcCache();
@@ -920,9 +929,9 @@ async function fetchBtcPrice() {
             btcMarketCap         = cached.marketCap || null;
             btcCirculatingSupply = btcMarketCap ? btcMarketCap / currentPrice : null;
             setConverterEnabled(true);
+            setStatus('stale', `Cached price (${fmtAge(cacheAge)} old) &mdash; live update failed`);
             updateBtcTicker();
             recalculate();
-            setStatus('stale', `Cached price (${fmtAge(cacheAge)} old) &mdash; live update failed`);
         } else {
             setConverterEnabled(false);
             showEmptyProjections();
@@ -1192,6 +1201,13 @@ function updateProjections() {
 // Chart.js — line chart (deck-themed)
 // ─────────────────────────────────────────────────────────────────────────────
 function updateChart(labels, values, pointColors) {
+    // Without Chart.js there is no chart to draw, but the table above it is still correct.
+    // Throwing here used to abort the caller mid-way and leave the status chip stuck on
+    // "Fetching latest BTC price…" forever.
+    if (typeof Chart === 'undefined') {
+        chartArea.hidden = true;
+        return;
+    }
     const ctx = document.getElementById('projectionChart');
     const t   = getDeckTheme();
 
