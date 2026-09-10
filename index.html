@@ -74,14 +74,19 @@
             --radius-card:    12px;
             --radius-control: 8px;
             --radius-pill:    999px;
+            --radius-sm:      6px;
         }
 
         *, *::before, *::after { box-sizing: border-box; }
 
+        /* An author `display` on a component beats the UA's [hidden] rule, so
+           el.hidden = true silently did nothing to .target-bar. Settle it once. */
+        [hidden] { display: none !important; }
+
         body {
             font-family: var(--font-sans);
             margin: 0;
-            padding: 28px 20px;
+            padding: 0 0 40px;
             background: var(--bg);
             color: var(--text);
             line-height: 1.5;
@@ -103,7 +108,8 @@
         ::selection { background: var(--accent-deep); color: var(--btn-ink); }
         a { color: var(--accent); }
         a:hover { color: var(--accent-deep); }
-        a:focus-visible, button:focus-visible, input:focus-visible {
+        a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible,
+        th[aria-sort]:focus-visible {
             outline: 2px solid var(--accent);
             outline-offset: 3px;
             border-radius: 4px;
@@ -114,44 +120,172 @@
             50%      { opacity: 0.35; }
         }
 
+        /* First-paint placeholders. A row of "--" reads as broken data; a shimmer reads
+           as "on its way", which is what is actually happening. */
+        @keyframes deck-shimmer {
+            0%   { background-position: 100% 50%; }
+            100% { background-position: 0 50%; }
+        }
+
+        /* The 60s refresh used to swap the price silently, so a "live" page never
+           visibly moved. These tint the changed value for one beat. */
+        @keyframes deck-flash-up {
+            0%   { background-color: rgba(61, 220, 132, 0.22); }
+            100% { background-color: transparent; }
+        }
+        @keyframes deck-flash-down {
+            0%   { background-color: rgba(255, 107, 107, 0.22); }
+            100% { background-color: transparent; }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation: none !important; transition: none !important; }
+            html { scroll-behavior: auto !important; }
         }
 
-        .container {
-            max-width: 1100px;
+        /* ═══════════════════════════════════════════════════════════════════
+           Sticky instrument rail — identity, connection state and live price
+           stay on screen while you work further down the page.
+           ═══════════════════════════════════════════════════════════════════ */
+        .rail {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: rgba(10, 13, 28, 0.86);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 20px;
+        }
+        @supports (backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px)) {
+            .rail {
+                background: rgba(10, 13, 28, 0.62);
+                -webkit-backdrop-filter: blur(14px) saturate(140%);
+                backdrop-filter: blur(14px) saturate(140%);
+            }
+        }
+
+        .rail__inner {
+            max-width: 1180px;
             margin: auto;
-            padding: 28px 32px;
-            background: var(--card);
-            border: 1px solid var(--border);
-            box-shadow: var(--shadow);
-            border-radius: var(--radius-card);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
         }
 
-        /* ── Header ── */
+        .rail__brand { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+
         .kicker {
-            display: block;
-            text-align: center;
             font-family: var(--font-mono);
-            font-size: 10px;
-            letter-spacing: 0.08em;
+            font-size: 9.5px;
+            letter-spacing: 0.1em;
             text-transform: uppercase;
             color: var(--faint);
             text-decoration: none;
-            margin-bottom: 8px;
             transition: color 0.2s ease;
         }
         .kicker:hover { color: var(--accent); }
 
-        h1 {
-            color: var(--text);
-            text-align: center;
-            margin: 0 0 6px;
-            font-size: 2rem;
+        .rail__title {
+            font-size: 15px;
             font-weight: 700;
-            letter-spacing: -0.5px;
+            letter-spacing: -0.2px;
+            margin: 0;
+            white-space: nowrap;
         }
-        h1 .btc-glyph { color: var(--btc); }
+        .rail__title .btc-glyph { color: var(--btc); }
+
+        .rail__spacer { flex: 1 1 auto; }
+
+        .rail__price {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
+        }
+        .rail__price .tick-label {
+            font-family: var(--font-mono);
+            font-size: 9.5px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--faint);
+        }
+        .rail__price .tick-value {
+            font-family: var(--font-mono);
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--accent);
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.3px;
+        }
+        .rail__price .tick-delta {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+        }
+        .tick-delta.up   { color: var(--live); }
+        .tick-delta.down { color: var(--down); }
+
+        .flash-up   { animation: deck-flash-up 1.1s ease-out; }
+        .flash-down { animation: deck-flash-down 1.1s ease-out; }
+
+        .rail__countdown {
+            font-family: var(--font-mono);
+            font-size: 9.5px;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            color: var(--faint);
+            white-space: nowrap;
+        }
+
+        /* ═══ Page shell ═══ */
+        .container {
+            max-width: 1180px;
+            margin: auto;
+            padding: 22px 20px 0;
+        }
+
+        .lede {
+            color: var(--muted);
+            font-size: 14px;
+            margin: 0 0 18px;
+            max-width: 62ch;
+        }
+
+        /* ═══ Panels ═══ */
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .panel__head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 12px 16px;
+            background: var(--card-chrome);
+            border-bottom: 1px solid var(--border);
+        }
+        .panel__head h2 { margin: 0; }
+        .panel__head .spacer, .target-bar .spacer { flex: 1 1 auto; }
+
+        .panel__body { padding: 16px; }
+
+        /* Fills the grid row and lets the chart, not the padding, absorb the extra
+           height — so this panel's bottom edge always lines up with its neighbour's
+           instead of needing a hardcoded height that drifts when content changes. */
+        .panel--fill { display: flex; flex-direction: column; }
+        .panel--fill .chart-container {
+            height: auto;
+            flex: 1 1 auto;
+            min-height: 300px;
+        }
 
         h2 {
             color: var(--muted);
@@ -160,41 +294,34 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            margin: 30px 0 12px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--border);
+            margin: 0;
         }
         h2 .btc-glyph { color: var(--btc); }
 
-        p.subtitle {
-            text-align: center;
-            color: var(--faint);
-            margin: 0 0 14px;
-            font-size: 14px;
+        /* ═══ Two-column workspace ═══ */
+        .workspace {
+            display: grid;
+            grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+            gap: 16px;
+            align-items: stretch;   /* both columns share the taller one's height */
+            margin-bottom: 16px;
         }
-        p.subtitle.left { text-align: left; margin-bottom: 6px; }
-
-        /* ── Status chip (the deck's signature element) ── */
-        .chip-row {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin: 14px 0 22px;
+        @media (max-width: 940px) {
+            .workspace { grid-template-columns: minmax(0, 1fr); }
         }
 
+        /* ═══ Status chip (the deck's signature element) ═══ */
         .chip {
             display: inline-flex;
             align-items: center;
             gap: 7px;
-            padding: 6px 12px;
+            padding: 5px 11px;
             border: 1px solid var(--border);
             border-radius: var(--radius-pill);
             background: var(--bg-raised);
             color: var(--muted);
             font-family: var(--font-mono);
-            font-size: 11px;
+            font-size: 10px;
             letter-spacing: 0.08em;
             text-transform: uppercase;
             white-space: nowrap;
@@ -214,86 +341,111 @@
         .chip.error { color: var(--down); }
         .chip.error .dot { background: var(--down); box-shadow: 0 0 8px var(--down); }
 
-        /* ── Live price ticker ── */
-        .price-ticker {
-            text-align: center;
-            padding: 22px 20px;
-            margin: 0 0 24px;
-            background: var(--bg-raised);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-card);
-        }
+        /* The chip carries a full sentence in the error state; let it wrap there
+           rather than pushing the rail sideways. */
+        .chip.error { white-space: normal; max-width: 460px; text-transform: none; letter-spacing: 0.02em; }
 
-        .price-ticker .price-label {
-            font-family: var(--font-mono);
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--faint);
+        /* ═══ Buttons ═══ */
+        button {
+            font-family: var(--font-sans);
+            padding: 9px 18px;
+            font-size: 14px;
             font-weight: 600;
-            margin-bottom: 6px;
+            cursor: pointer;
+            background: var(--accent);
+            color: var(--btn-ink);
+            border: none;
+            border-radius: var(--radius-control);
+            letter-spacing: 0.02em;
+            transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+        }
+        button:hover:not(:disabled) {
+            background: var(--accent-deep);
+            transform: translateY(-1px);
+        }
+        button:active:not(:disabled) { transform: translateY(0); }
+        button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        button.btn-sm { padding: 6px 14px; font-size: 12px; }
+
+        button.btn-ghost {
+            background: var(--bg-raised);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        button.btn-ghost:hover:not(:disabled) {
+            background: var(--bg-raised);
+            border-color: var(--border-hover);
         }
 
-        .price-ticker .price-value {
-            font-family: var(--font-mono);
-            font-size: 2.4rem;
-            font-weight: 700;
-            color: var(--accent);
-            letter-spacing: -1px;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .price-ticker .price-change {
+        button.btn-danger {
+            background: transparent;
+            color: var(--faint);
+            border: none;
+            padding: 0 2px;
             font-family: var(--font-mono);
             font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            margin-top: 6px;
-            color: var(--muted);
-            font-variant-numeric: tabular-nums;
+            line-height: 1;
         }
-        .price-ticker .price-change.up   { color: var(--live); }
-        .price-ticker .price-change.down { color: var(--down); }
+        button.btn-danger:hover:not(:disabled) {
+            background: transparent;
+            color: var(--down);
+            transform: none;
+        }
 
-        .price-ticker .refresh-info {
+        /* Small mono affordance that sits beside a value (copy, etc.) */
+        button.icon-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--faint);
+            font-family: var(--font-mono);
+            font-size: 9.5px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 4px 9px;
+            border-radius: var(--radius-pill);
+        }
+        button.icon-btn:hover:not(:disabled) {
+            background: transparent;
+            color: var(--accent);
+            border-color: var(--border-hover);
+            transform: none;
+        }
+        button.icon-btn.done { color: var(--live); border-color: var(--live); }
+
+        /* ═══ Segmented control (units, history range) ═══ */
+        .seg {
+            display: inline-flex;
+            background: var(--card-chrome);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-pill);
+            padding: 3px;
+            gap: 2px;
+        }
+        .seg button {
+            background: transparent;
+            color: var(--faint);
+            border: none;
+            border-radius: var(--radius-pill);
+            padding: 5px 11px;
             font-family: var(--font-mono);
             font-size: 10px;
-            text-transform: uppercase;
+            font-weight: 600;
             letter-spacing: 0.08em;
-            color: var(--faint);
-            margin-top: 8px;
+            text-transform: uppercase;
         }
-
-        /* ── Calculator section ── */
-        .calc-section {
-            padding: 20px;
+        .seg button:hover:not(:disabled) {
             background: var(--bg-raised);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-control);
-            margin-bottom: 24px;
+            color: var(--text);
+            transform: none;
         }
-
-        .calc-fields {
-            display: flex;
-            gap: 24px;
-            align-items: flex-end;
-            justify-content: center;
-            flex-wrap: wrap;
+        .seg button[aria-pressed="true"] {
+            background: var(--accent);
+            color: var(--btn-ink);
         }
+        .seg button[aria-pressed="true"]:hover { background: var(--accent-deep); }
 
-        .field-group {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .calc-separator {
-            font-size: 22px;
-            font-weight: 700;
-            color: var(--accent);
-            padding-bottom: 6px;
-        }
-
+        /* ═══ Form controls ═══ */
         label {
             font-family: var(--font-mono);
             font-weight: 600;
@@ -301,17 +453,17 @@
             text-transform: uppercase;
             letter-spacing: 0.08em;
             color: var(--faint);
-            margin-bottom: 6px;
+            margin-bottom: 7px;
             display: block;
         }
 
         input {
             font-family: var(--font-mono);
-            padding: 9px 12px;
+            padding: 10px 12px;
             font-size: 14px;
             border: 1px solid var(--border);
             border-radius: var(--radius-control);
-            width: 200px;
+            width: 100%;
             max-width: 100%;
             background: var(--card-chrome);
             color: var(--text);
@@ -324,22 +476,312 @@
             border-color: var(--accent);
             box-shadow: 0 0 0 3px rgba(255, 154, 68, 0.18);
         }
+        input:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* ── Projections table ── */
+        /* Amount field: bigger type, unit printed inside the box on the right */
+        .input-wrap { position: relative; }
+        .input-wrap input {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: -0.4px;
+            padding: 12px 74px 12px 13px;
+        }
+        .input-wrap .unit-suffix {
+            position: absolute;
+            right: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--faint);
+            pointer-events: none;
+        }
+
+        .field-hint {
+            font-family: var(--font-mono);
+            font-size: 9.5px;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: var(--faint);
+            margin: 7px 0 0;
+            min-height: 12px;
+        }
+        .field-hint.invalid { color: var(--warn); }
+
+        /* ═══ Quick-amount chips ═══ */
+        .quick-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+        .quick-chips button {
+            background: var(--bg-raised);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.05em;
+            padding: 5px 10px;
+            border-radius: var(--radius-pill);
+            font-variant-numeric: tabular-nums;
+        }
+        .quick-chips button:hover:not(:disabled) {
+            background: var(--bg-raised);
+            border-color: var(--border-hover);
+            color: var(--text);
+            transform: none;
+        }
+
+        /* ═══ Hero readout — the answer the visitor came for ═══ */
+        .readout {
+            margin-top: 18px;
+            padding: 16px;
+            background: var(--bg-raised);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-control);
+            position: relative;
+        }
+        .readout__head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+        .readout__label {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--faint);
+        }
+        .readout__value {
+            font-family: var(--font-mono);
+            font-size: 2.15rem;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: -1.2px;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.15;
+            word-break: break-word;
+            border-radius: var(--radius-sm);
+        }
+        .readout__meta {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--faint);
+            margin-top: 6px;
+        }
+
+        .divider-or {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 18px 0 14px;
+            font-family: var(--font-mono);
+            font-size: 9.5px;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            color: var(--faint);
+        }
+        .divider-or::before, .divider-or::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* ═══ Stat tiles ═══ */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .stat {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-control);
+            padding: 12px 14px;
+        }
+        .stat .label {
+            font-family: var(--font-mono);
+            font-size: 9.5px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--faint);
+            display: block;
+            margin-bottom: 5px;
+        }
+        .stat .value {
+            font-family: var(--font-mono);
+            font-size: 19px;
+            font-weight: 700;
+            color: var(--text);
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.4px;
+            display: block;
+            border-radius: var(--radius-sm);
+        }
+        .stat .sub {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.05em;
+            color: var(--faint);
+            font-variant-numeric: tabular-nums;
+            display: block;
+            margin-top: 3px;
+        }
+        .stat .value.up,   .stat .sub.up   { color: var(--live); }
+        .stat .value.down, .stat .sub.down { color: var(--down); }
+
+        /* ═══ Charts ═══ */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            padding: 8px 6px 4px;
+        }
+        .chart-container--ladder { height: 380px; }
+        canvas { max-width: 100%; }
+
+        .chart-note {
+            font-family: var(--font-mono);
+            font-size: 9.5px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--faint);
+            margin: 0;
+            padding: 0 16px 14px;
+        }
+
+        .chart-fallback {
+            padding: 30px 16px;
+            text-align: center;
+            color: var(--faint);
+            font-size: 13px;
+        }
+
+        .range-summary {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+        .range-summary.up   { color: var(--live); }
+        .range-summary.down { color: var(--down); }
+
+        /* ═══ Chart legend ═══ */
+        .chart-legend {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 0 16px 14px;
+            font-family: var(--font-mono);
+            font-size: 9.5px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--faint);
+        }
+        .legend-dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 2px;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .legend-dot.default { background: var(--accent); }
+        .legend-dot.ath     { background: var(--text); }
+        .legend-dot.custom  { background: var(--magenta); }
+        .legend-dot.below   { background: var(--down); }
+        .legend-dot.above   { background: var(--live); }
+
+        /* ═══ Target chips ═══ */
+        .target-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-raised);
+        }
+        .target-bar .bar-label {
+            font-family: var(--font-mono);
+            font-size: 9.5px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--faint);
+            margin: 0;
+        }
+        .target-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px 4px 11px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-pill);
+            background: var(--card-chrome);
+            color: var(--tag-text);
+            font-family: var(--font-mono);
+            font-size: 10.5px;
+            letter-spacing: 0.05em;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+        .target-chip::before {
+            content: "";
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--magenta);
+            flex-shrink: 0;
+        }
+
+        .target-chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+        .add-target {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            padding: 12px 16px;
+        }
+        /* Mono renders ~20% wider than the sans stack — this placeholder measures ~220px */
+        .add-target input { width: 240px; }
+        .add-target .grow { flex: 1 1 auto; }
+
+        .target-feedback {
+            font-family: var(--font-mono);
+            font-size: 9.5px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--faint);
+            margin: 0;
+            padding: 0 16px 12px;
+            min-height: 12px;
+        }
+        .target-feedback.added    { color: var(--live); }
+        .target-feedback.rejected { color: var(--warn); }
+
+        /* ═══ Projections table ═══ */
         .table-wrapper {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
             max-width: 100%;
-            margin-top: 14px;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-card);
+            border-top: 1px solid var(--border);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 14px;
-            min-width: 100%;
+            font-size: 13.5px;
             border: none;
             margin: 0;
         }
@@ -353,15 +795,25 @@
         }
         th:first-child, td:first-child { text-align: left; }
 
-        th {
+        thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
             background: var(--card-chrome);
             font-family: var(--font-mono);
             font-weight: 600;
-            font-size: 10.5px;
+            font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.08em;
             color: var(--faint);
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s ease;
         }
+        thead th:hover { color: var(--accent); }
+        /* The arrow slot is always reserved so sorting never nudges the columns */
+        thead th .sort-arrow { display: inline-block; width: 10px; margin-left: 5px; color: var(--accent); }
+        thead th[aria-sort="none"] .sort-arrow { color: transparent; }
 
         tbody tr:last-child td { border-bottom: none; }
         tbody tr:hover { background: var(--bg-raised); }
@@ -369,144 +821,36 @@
         .positive { color: var(--live); font-weight: 700; }
         .negative { color: var(--down); font-weight: 700; }
 
-        .row-note { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
-
-        .current-row { background: var(--tag-bg); font-weight: 700; }
-        .ath-row     { background: rgba(255, 255, 255, 0.03); }
-
-        /* ── Chart legend ── */
-        .chart-legend {
-            display: flex;
-            gap: 18px;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-top: 14px;
+        .row-note {
             font-family: var(--font-mono);
-            font-size: 10px;
+            font-size: 9.5px;
             letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--faint);
         }
-        .legend-dot {
-            display: inline-block;
-            width: 8px; height: 8px;
-            border-radius: 50%;
-            margin-right: 6px;
-            vertical-align: middle;
-        }
-        .legend-dot.default { background: var(--accent); }
-        .legend-dot.ath     { background: var(--text); }
-        .legend-dot.custom  { background: var(--magenta); }
-        .legend-dot.below   { background: var(--down); }
-        .legend-dot.above   { background: var(--live); }
 
-        /* ── Custom target input ── */
-        .add-target {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            justify-content: center;
-            margin-top: 14px;
-            flex-wrap: wrap;
-        }
-        /* 240px, not 180px: the monospace stack renders the full
-           "Custom price target ($)" placeholder at ~220px */
-        .add-target input { width: 240px; }
+        .current-row { background: var(--tag-bg); font-weight: 700; }
+        .current-row td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+        .ath-row     { background: rgba(255, 255, 255, 0.03); }
+        .custom-row td:first-child { box-shadow: inset 3px 0 0 var(--magenta); }
 
-        button {
-            font-family: var(--font-sans);
-            padding: 9px 18px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            background: var(--accent);
-            color: var(--btn-ink);
-            border: none;
-            border-radius: var(--radius-control);
-            letter-spacing: 0.02em;
-            transition: background 0.2s ease, transform 0.2s ease;
-        }
-        button:hover:not(:disabled) {
-            background: var(--accent-deep);
-            transform: translateY(-1px);
-        }
-        button:active:not(:disabled) { transform: translateY(0); }
-
-        button.btn-sm {
-            padding: 6px 14px;
-            font-size: 12px;
-        }
-        button.btn-danger {
-            background: var(--bg-raised);
-            color: var(--down);
-            border: 1px solid var(--border);
-            padding: 2px 8px;
-            font-family: var(--font-mono);
-            line-height: 1.3;
-        }
-        button.btn-danger:hover:not(:disabled) {
-            background: var(--bg-raised);
-            border-color: var(--down);
-        }
-
-        /* ── Chart ── */
-        .chart-container {
-            position: relative;
-            margin-top: 22px;
-            height: 360px;
-            padding: 8px;
-            background: var(--bg-raised);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-card);
-        }
-        canvas { max-width: 100%; }
-
-        /* ── Footer ── */
-        .footer {
-            text-align: center;
-            margin-top: 32px;
-            padding-top: 16px;
-            border-top: 1px solid var(--border);
+        .empty-state {
+            text-align: center !important;
+            color: var(--faint);
             font-size: 13px;
-            color: var(--faint);
-        }
-        .footer a { color: var(--accent); text-decoration: none; }
-        .footer a:hover { color: var(--accent-deep); text-decoration: underline; }
-
-        .disclaimer {
-            font-size: 12px;
-            color: var(--faint);
-            margin-top: 12px;
-            padding: 12px 14px;
-            background: var(--bg-raised);
-            border: 1px solid var(--border);
-            border-left: 3px solid var(--accent);
-            border-radius: var(--radius-control);
-            text-align: left;
-            line-height: 1.6;
-        }
-        .disclaimer strong { color: var(--muted); }
-
-        /* ── Screen-reader-only text ── */
-        .sr-only {
-            position: absolute;
-            width: 1px; height: 1px;
-            padding: 0; margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border: 0;
+            padding: 30px 14px;
+            white-space: normal;
         }
 
-        /* ── "How this works" panel ── */
+        /* ═══ "How this works" panel ═══ */
         .how-it-works {
-            margin: 0 0 18px;
+            margin: 16px 0 0;
             font-size: 13px;
             color: var(--muted);
-            background: var(--bg-raised);
+            background: var(--card);
             border: 1px solid var(--border);
-            border-radius: var(--radius-control);
-            padding: 10px 14px;
+            border-radius: var(--radius-card);
+            padding: 12px 16px;
         }
         .how-it-works summary {
             cursor: pointer;
@@ -526,76 +870,156 @@
         .how-it-works li:last-child { margin-bottom: 0; }
         .how-it-works strong { color: var(--text); }
 
-        /* ── Add-target feedback ── */
-        .target-feedback {
-            text-align: center;
-            font-family: var(--font-mono);
-            font-size: 10px;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--faint);
-            margin: 8px 0 0;
-            min-height: 14px;
-        }
-        .target-feedback.added    { color: var(--live); }
-        .target-feedback.rejected { color: var(--warn); }
-
-        /* ── Empty / waiting state ── */
-        .empty-state {
-            text-align: center !important;
-            color: var(--faint);
+        /* ═══ Footer ═══ */
+        .footer {
+            max-width: 1180px;
+            margin: 28px auto 0;
+            padding: 16px 20px 0;
+            border-top: 1px solid var(--border);
             font-size: 13px;
-            padding: 26px 14px;
-            white-space: normal;
+            color: var(--faint);
+            text-align: center;
         }
+        .footer a { color: var(--accent); text-decoration: none; }
+        .footer a:hover { color: var(--accent-deep); text-decoration: underline; }
+        .footer p { margin: 0 0 8px; }
 
-        /* ── Secondary button ── */
-        button.btn-ghost {
-            background: var(--bg-raised);
-            color: var(--text);
-            border: 1px solid var(--border);
-        }
-        button.btn-ghost:hover:not(:disabled) {
-            background: var(--bg-raised);
-            border-color: var(--border-hover);
-        }
-
-        input:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        /* ── No-JavaScript notice ── */
-        .noscript-note {
-            margin: 0 0 22px;
+        .disclaimer {
+            font-size: 12px;
+            color: var(--faint);
+            margin-top: 14px;
             padding: 12px 14px;
-            background: var(--bg-raised);
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: var(--radius-control);
+            text-align: left;
+            line-height: 1.6;
+        }
+        .disclaimer strong { color: var(--muted); }
+
+        /* ═══ No-JavaScript notice ═══ */
+        .noscript-note {
+            margin: 0 0 20px;
+            padding: 12px 14px;
+            background: var(--card);
             border: 1px solid var(--border);
             border-left: 3px solid var(--warn);
             border-radius: var(--radius-control);
             color: var(--muted);
             font-size: 13px;
-            text-align: center;
         }
 
-        /* ── Responsive ── */
-        @media (max-width: 620px) {
-            body { padding: 14px 10px; }
-            .container { padding: 18px 16px; }
-            h1 { font-size: 1.55rem; }
-            .price-ticker .price-value { font-size: 1.8rem; }
-            .calc-fields { flex-direction: column; align-items: center; }
-            input { width: 230px; }
-            .chart-container { height: 280px; }
+        /* ═══ Screen-reader-only text ═══ */
+        .sr-only {
+            position: absolute;
+            width: 1px; height: 1px;
+            padding: 0; margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* ═══ Loading skeletons ═══ */
+        .skeleton {
+            color: transparent !important;
+            background-image: linear-gradient(90deg,
+                rgba(255, 255, 255, 0.04) 25%,
+                rgba(255, 255, 255, 0.10) 37%,
+                rgba(255, 255, 255, 0.04) 63%);
+            background-size: 400% 100%;
+            animation: deck-shimmer 1.5s ease infinite;
+            border-radius: var(--radius-sm);
+            user-select: none;
+        }
+        .skeleton::after { content: "\00a0"; }
+
+        /* ═══ Responsive ═══ */
+        @media (max-width: 720px) {
+            .rail { padding: 9px 14px; }
+            .rail__inner { gap: 10px; }
+            .rail__countdown { display: none; }
+            .container { padding: 18px 14px 0; }
+            .readout__value { font-size: 1.75rem; }
+            .chart-container { height: 260px; }
+            .panel--fill .chart-container { min-height: 260px; }
+            .add-target input { width: 100%; }
+            .add-target .grow { width: 100%; }
+
+            /* A four-column money table on a phone is a horizontal-scroll trap.
+               Below this width every row becomes its own labelled card. */
+            .table-wrapper { overflow-x: visible; }
+            table, tbody, tr, td { display: block; width: 100%; }
+            thead { display: none; }
+            tbody tr {
+                border-bottom: 1px solid var(--border);
+                padding: 10px 14px;
+            }
+            tbody tr:hover { background: transparent; }
+            .current-row td:first-child, .custom-row td:first-child { box-shadow: none; }
+            .current-row { box-shadow: inset 3px 0 0 var(--accent); }
+            .custom-row  { box-shadow: inset 3px 0 0 var(--magenta); }
+            td {
+                border-bottom: none;
+                padding: 3px 0;
+                display: flex;
+                justify-content: space-between;
+                align-items: baseline;
+                gap: 12px;
+                text-align: right;
+                white-space: normal;
+            }
+            td::before {
+                content: attr(data-label);
+                font-family: var(--font-mono);
+                font-size: 9.5px;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                color: var(--faint);
+                text-align: left;
+                flex-shrink: 0;
+            }
+            td:first-child {
+                font-weight: 700;
+                font-size: 15px;
+                padding-bottom: 6px;
+            }
+            td:first-child::before { content: "Target"; }
+            .empty-state { display: block; }
+            .empty-state::before { content: none; }
         }
     </style>
 </head>
 <body>
-<div class="container">
 
-    <a class="kicker" href="https://observation-deck.netlify.app/">Observation Deck / Calculat-Bur</a>
-    <h1><span class="btc-glyph" aria-hidden="true">&#8383;</span><span class="sr-only">B</span>itcoin Calculator</h1>
-    <p class="subtitle">Real-time BTC/USD converter &mdash; see a holding's value at any price target</p>
+<!-- ═══ Sticky instrument rail ═══ -->
+<header class="rail">
+    <div class="rail__inner">
+        <div class="rail__brand">
+            <a class="kicker" href="https://observation-deck.netlify.app/">Observation Deck / Calculat-Bur</a>
+            <p class="rail__title"><span class="btc-glyph" aria-hidden="true">&#8383;</span><span class="sr-only">B</span>itcoin Calculator</p>
+        </div>
+
+        <div class="rail__spacer"></div>
+
+        <div class="rail__price" id="railPrice">
+            <span class="tick-label">BTC/USD</span>
+            <span class="tick-value skeleton" id="livePrice">$000,000.00</span>
+            <span class="tick-delta skeleton" id="priceChange">+0.00%</span>
+        </div>
+
+        <div id="dataStatus" class="chip loading" role="status" aria-live="polite">
+            <span class="dot"></span>
+            <span id="statusText">Connecting to CoinGecko&hellip;</span>
+        </div>
+        <button id="retryBtn" class="btn-sm btn-ghost" hidden>Retry now</button>
+
+        <span class="rail__countdown" id="refreshInfo">Refreshes every 60s</span>
+    </div>
+</header>
+
+<div class="container">
 
     <noscript>
         <div class="noscript-note">
@@ -604,45 +1028,161 @@
         </div>
     </noscript>
 
-    <!-- Live status chip -->
-    <div class="chip-row">
-        <div id="dataStatus" class="chip loading" role="status" aria-live="polite">
-            <span class="dot"></span>
-            <span id="statusText">Connecting to CoinGecko&hellip;</span>
-        </div>
-        <button id="retryBtn" class="btn-sm btn-ghost" onclick="retryNow()" hidden>Retry now</button>
-    </div>
-
-    <!-- ── Live Price Ticker ── -->
-    <div class="price-ticker">
-        <div class="price-label">Bitcoin (BTC/USD)</div>
-        <div class="price-value" id="livePrice">--</div>
-        <div class="price-change" id="priceChange">--</div>
-        <div class="refresh-info" id="refreshInfo">Refreshes every 60 seconds</div>
-    </div>
-
-    <!-- ── Calculator ── -->
-    <h2><span class="btc-glyph" aria-hidden="true">&#8383;</span> Converter</h2>
-    <div class="calc-section">
-        <div class="calc-fields">
-            <div class="field-group">
-                <label for="btcInput">Bitcoin (BTC)</label>
-                <input type="number" id="btcInput" inputmode="decimal" min="0" step="0.00000001" placeholder="1.00000000" value="1">
-            </div>
-            <div class="calc-separator">=</div>
-            <div class="field-group">
-                <label for="usdInput">US Dollars (USD)</label>
-                <input type="number" id="usdInput" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
-            </div>
-        </div>
-    </div>
-
-    <!-- ── Future Price Projections ── -->
-    <h2>Future Value Projections</h2>
-    <p class="subtitle left">
-        Every row below re-prices the BTC amount from the converter above &mdash;
-        change it to see your own numbers.
+    <p class="lede">
+        Convert Bitcoin to dollars at the live market price, then see what that holding
+        would be worth at any price target. Every figure below is arithmetic on the amount
+        you enter &mdash; nothing here is a forecast.
     </p>
+
+    <!-- ═══ Workspace: position on the left, price history on the right ═══ -->
+    <div class="workspace">
+
+        <!-- ── Position ── -->
+        <section class="panel" aria-labelledby="positionHeading">
+            <div class="panel__head">
+                <h2 id="positionHeading"><span class="btc-glyph" aria-hidden="true">&#8383;</span> Your position</h2>
+                <div class="spacer"></div>
+                <div class="seg" role="group" aria-label="Amount unit" id="unitSeg">
+                    <button type="button" data-unit="btc"  aria-pressed="true">BTC</button>
+                    <button type="button" data-unit="mbtc" aria-pressed="false">mBTC</button>
+                    <button type="button" data-unit="sats" aria-pressed="false">sats</button>
+                </div>
+            </div>
+
+            <div class="panel__body">
+                <label for="amountInput">Amount held</label>
+                <div class="input-wrap">
+                    <input type="text" id="amountInput" inputmode="decimal" autocomplete="off"
+                           spellcheck="false" placeholder="1.00" value="1"
+                           aria-describedby="amountHint">
+                    <span class="unit-suffix" id="unitSuffix" aria-hidden="true">BTC</span>
+                </div>
+                <p class="field-hint" id="amountHint"></p>
+
+                <div class="quick-chips" id="quickChips" role="group" aria-label="Quick amounts"></div>
+
+                <div class="readout">
+                    <div class="readout__head">
+                        <span class="readout__label">Value now</span>
+                        <button type="button" class="icon-btn" id="copyValue"
+                                aria-label="Copy the current holdings value to the clipboard">Copy</button>
+                    </div>
+                    <div class="readout__value skeleton" id="holdingsValue" role="status" aria-live="polite">$0,000.00</div>
+                    <div class="readout__meta" id="valueMeta">Waiting for live pricing</div>
+                </div>
+
+                <div class="divider-or">or start from dollars</div>
+
+                <label for="usdInput">US Dollars (USD)</label>
+                <input type="text" id="usdInput" inputmode="decimal" autocomplete="off"
+                       spellcheck="false" placeholder="0.00" aria-describedby="usdHint">
+                <p class="field-hint" id="usdHint"></p>
+            </div>
+        </section>
+
+        <!-- ── Price history ── -->
+        <section class="panel panel--fill" aria-labelledby="historyHeading">
+            <div class="panel__head">
+                <h2 id="historyHeading">BTC price history</h2>
+                <span class="range-summary" id="rangeSummary"></span>
+                <div class="spacer"></div>
+                <div class="seg" role="group" aria-label="History range" id="rangeSeg">
+                    <button type="button" data-days="1"   aria-pressed="false">24H</button>
+                    <button type="button" data-days="7"   aria-pressed="false">7D</button>
+                    <button type="button" data-days="30"  aria-pressed="true">30D</button>
+                    <button type="button" data-days="90"  aria-pressed="false">90D</button>
+                    <button type="button" data-days="365" aria-pressed="false">1Y</button>
+                </div>
+            </div>
+
+            <div class="chart-container" id="historyArea">
+                <canvas id="historyChart" role="img"
+                        aria-label="Line chart of the Bitcoin market price over the selected range. The range's opening price, closing price and percentage change are stated in the caption below the chart."></canvas>
+            </div>
+            <p class="chart-note" id="historyNote">Loading price history from CoinGecko&hellip;</p>
+        </section>
+    </div>
+
+    <!-- ═══ Stat tiles ═══ -->
+    <div class="stat-grid" id="statGrid">
+        <div class="stat">
+            <span class="label">24h change</span>
+            <span class="value skeleton" id="stat24h">+0.00%</span>
+            <span class="sub" id="stat24hSub">on your position</span>
+        </div>
+        <div class="stat">
+            <span class="label">vs 2025 ATH</span>
+            <span class="value skeleton" id="statAth">+0.00%</span>
+            <span class="sub" id="statAthSub">&nbsp;</span>
+        </div>
+        <div class="stat">
+            <span class="label">Value at 2025 ATH</span>
+            <span class="value skeleton" id="statAthValue">$0.00</span>
+            <span class="sub" id="statAthValueSub">&nbsp;</span>
+        </div>
+        <div class="stat">
+            <span class="label">BTC market cap</span>
+            <span class="value skeleton" id="statMktCap">$0.00T</span>
+            <span class="sub" id="statSupply">&nbsp;</span>
+        </div>
+    </div>
+
+    <!-- ═══ Projections ═══ -->
+    <section class="panel" aria-labelledby="projHeading">
+        <div class="panel__head">
+            <h2 id="projHeading">Future value projections</h2>
+            <div class="spacer"></div>
+            <button type="button" class="btn-sm icon-btn" id="shareBtn"
+                    aria-label="Copy a link that reproduces this amount and these targets">Copy share link</button>
+        </div>
+
+        <div class="target-bar" id="targetBar" hidden>
+            <p class="bar-label">Your targets</p>
+            <div id="targetChips" class="target-chip-row"></div>
+            <div class="spacer"></div>
+            <button type="button" class="btn-sm btn-ghost" id="clearTargets">Clear all</button>
+        </div>
+
+        <div class="add-target">
+            <label class="sr-only" for="customTarget">Custom BTC price target in US dollars</label>
+            <input type="text" id="customTarget" inputmode="decimal" autocomplete="off"
+                   spellcheck="false" placeholder="Custom price target ($)">
+            <button type="button" class="btn-sm" id="addTargetBtn">Add target</button>
+            <span class="grow"></span>
+        </div>
+        <p id="targetFeedback" class="target-feedback" role="status" aria-live="polite"></p>
+
+        <div id="chartArea">
+            <div class="chart-container chart-container--ladder">
+                <canvas id="projectionChart" role="img"
+                        aria-label="Bar chart of holdings value at each BTC price target. The same figures are listed in the projections table below."></canvas>
+            </div>
+            <div class="chart-legend">
+                <span><span class="legend-dot default"></span>Default target</span>
+                <span><span class="legend-dot ath"></span>2025 ATH</span>
+                <span><span class="legend-dot custom"></span>Custom target</span>
+                <span><span class="legend-dot below"></span>Current price (below 2025 ATH)</span>
+                <span><span class="legend-dot above"></span>Current price (above 2025 ATH)</span>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table id="projectionTable">
+                <caption class="sr-only">
+                    Holdings value at each BTC price target. Column headers are buttons that sort the table.
+                </caption>
+                <thead>
+                    <tr id="projHeadRow">
+                        <th data-sort="price"  aria-sort="ascending"  tabindex="0" role="button">BTC price target<span class="sort-arrow">&#9650;</span></th>
+                        <th data-sort="value"  aria-sort="none" tabindex="0" role="button">Holdings value<span class="sort-arrow">&#9650;</span></th>
+                        <th data-sort="change" aria-sort="none" tabindex="0" role="button">Change vs current<span class="sort-arrow">&#9650;</span></th>
+                        <th data-sort="cap"    aria-sort="none" tabindex="0" role="button">Est. market cap<span class="sort-arrow">&#9650;</span></th>
+                    </tr>
+                </thead>
+                <tbody id="projectionBody"></tbody>
+            </table>
+        </div>
+    </section>
 
     <details class="how-it-works">
         <summary>How this works</summary>
@@ -660,73 +1200,45 @@
             into this page as a fixed reference point. It is not fetched live and does not update on its
             own if a new record is set.</li>
 
+            <li><strong>The price history chart is real market data</strong> from CoinGecko, unlike the
+            projections. It is cached briefly in your browser so switching ranges does not hammer a free
+            API. Past prices say nothing about future ones.</li>
+
             <li><strong>Targets you add stay in this browser.</strong> They will be here next visit but
-            not on another device; remove one with the &times; beside its price. The BTC amount you type
-            is never saved and never leaves your browser.</li>
+            not on another device &mdash; use <em>Copy share link</em> to carry an amount and a set of
+            targets to another device or person. Remove one with the &times; beside its chip. The BTC
+            amount you type is never saved to a server and never leaves your browser.</li>
         </ul>
     </details>
 
-    <div class="add-target">
-        <label class="sr-only" for="customTarget">Custom BTC price target in US dollars</label>
-        <input type="number" id="customTarget" inputmode="decimal" min="1" step="1000" placeholder="Custom price target ($)">
-        <button class="btn-sm" onclick="addCustomTarget()">Add Target</button>
-    </div>
-    <p id="targetFeedback" class="target-feedback" role="status" aria-live="polite"></p>
-
-    <div class="table-wrapper">
-        <table id="projectionTable">
-            <thead>
-                <tr>
-                    <th>BTC Price Target</th>
-                    <th>Holdings Value</th>
-                    <th>Change vs Current</th>
-                    <th>Est. Market Cap</th>
-                </tr>
-            </thead>
-            <tbody id="projectionBody"></tbody>
-        </table>
-    </div>
-
-    <div id="chartArea">
-        <div class="chart-container">
-            <canvas id="projectionChart" role="img"
-                    aria-label="Line chart of holdings value at each BTC price target. The same figures are listed in the projections table above."></canvas>
-        </div>
-        <div class="chart-legend">
-            <span><span class="legend-dot default"></span>Default target</span>
-            <span><span class="legend-dot ath"></span>2025 ATH</span>
-            <span><span class="legend-dot custom"></span>Custom target</span>
-            <span><span class="legend-dot below"></span>Current price (below 2025 ATH)</span>
-            <span><span class="legend-dot above"></span>Current price (above 2025 ATH)</span>
-        </div>
-    </div>
-
-    <footer class="footer">
-        <p>
-            <a href="https://observation-deck.netlify.app/">Observation Deck</a> &nbsp;&middot;&nbsp;
-            <a href="https://github.com/00xJS/calculat-bur">GitHub</a>
-        </p>
-        <p>
-            Live data from <a href="https://www.coingecko.com/" target="_blank" rel="noopener">CoinGecko</a>
-            &middot; Auto-refreshes every 60 seconds
-        </p>
-        <div class="disclaimer">
-            <strong>Not financial advice.</strong> This tool is for educational and informational purposes only.
-            Bitcoin is a highly volatile asset &mdash;
-            always conduct your own research before making any investment decisions.
-        </div>
-    </footer>
-
 </div><!-- /.container -->
+
+<footer class="footer">
+    <p>
+        <a href="https://observation-deck.netlify.app/">Observation Deck</a> &nbsp;&middot;&nbsp;
+        <a href="https://github.com/00xJS/calculat-bur">GitHub</a>
+    </p>
+    <p>
+        Live data from <a href="https://www.coingecko.com/" target="_blank" rel="noopener">CoinGecko</a>
+        &middot; Auto-refreshes every 60 seconds
+    </p>
+    <div class="disclaimer">
+        <strong>Not financial advice.</strong> This tool is for educational and informational purposes only.
+        Bitcoin is a highly volatile asset &mdash;
+        always conduct your own research before making any investment decisions.
+    </div>
+</footer>
 
 <script>
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuration
 // ─────────────────────────────────────────────────────────────────────────────
-const BTC_URL        = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_market_cap=true';
+const API_BASE       = 'https://api.coingecko.com/api/v3';
+const BTC_URL        = `${API_BASE}/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_market_cap=true`;
 const REFRESH_MS     = 60000;
 const CACHE_KEY      = 'calculat-burr-btc-price';
 const TARGETS_KEY    = 'calculat-burr-custom-targets';
+const HISTORY_KEY    = 'calculat-burr-history';
 
 // 2025 All-Time High — special pinned target.
 // Hardcoded deliberately: this is a fixed historical reference, not a live figure.
@@ -736,6 +1248,22 @@ const DEFAULT_TARGETS = [50000, 75000, 100000, 150000, 200000, 250000, 500000, 1
 
 // A cached price older than this is stale enough to be misleading — show an error instead
 const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000;
+
+// History is a second call against the same free, unauthenticated API. Cache each range
+// so flipping between 24H/7D/30D does not spend the rate limit that the 60s price poll
+// already competes for. Intraday moves fast; a year of daily closes does not.
+const HISTORY_TTL_MS = { 1: 5 * 60 * 1000, 7: 30 * 60 * 1000, 30: 60 * 60 * 1000,
+                         90: 6 * 60 * 60 * 1000, 365: 12 * 60 * 60 * 1000 };
+const HISTORY_RANGES = [1, 7, 30, 90, 365];
+
+// Units. Everything is stored internally in BTC; `factor` converts to the display unit.
+const UNITS = {
+    btc:  { factor: 1,    label: 'BTC',  decimals: 8, presets: [0.01, 0.1, 0.25, 0.5, 1, 5] },
+    mbtc: { factor: 1e3,  label: 'mBTC', decimals: 5, presets: [1, 10, 50, 100, 500, 1000] },
+    sats: { factor: 1e8,  label: 'sats', decimals: 0, presets: [10000, 100000, 1e6, 1e7, 5e7, 1e8] },
+};
+
+const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Deck theme — read the design tokens once, share them with Chart.js
@@ -763,40 +1291,92 @@ function getDeckTheme() {
     return deckTheme;
 }
 
+// Gradients need real rgba, but the colors must still come from the token block —
+// hardcoding "255,154,68" here would silently survive a future palette change.
+function hexToRgba(hex, alpha) {
+    const h = hex.replace('#', '').trim();
+    const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+    const n = parseInt(full, 16);
+    if (!Number.isFinite(n) || full.length !== 6) return `rgba(255, 154, 68, ${alpha})`;
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // DOM references
 // ─────────────────────────────────────────────────────────────────────────────
-const dataStatusEl   = document.getElementById('dataStatus');
-const statusTextEl   = document.getElementById('statusText');
-const livePriceEl    = document.getElementById('livePrice');
-const priceChangeEl  = document.getElementById('priceChange');
-const refreshInfoEl  = document.getElementById('refreshInfo');
-const btcInput       = document.getElementById('btcInput');
-const usdInput       = document.getElementById('usdInput');
-const projectionBody = document.getElementById('projectionBody');
-const customTargetIn = document.getElementById('customTarget');
-const retryBtn       = document.getElementById('retryBtn');
-const targetFeedback = document.getElementById('targetFeedback');
-const chartArea      = document.getElementById('chartArea');
+const $ = (id) => document.getElementById(id);
+
+const dataStatusEl   = $('dataStatus');
+const statusTextEl   = $('statusText');
+const livePriceEl    = $('livePrice');
+const priceChangeEl  = $('priceChange');
+const railPriceEl    = $('railPrice');
+const refreshInfoEl  = $('refreshInfo');
+const retryBtn       = $('retryBtn');
+
+const amountInput    = $('amountInput');
+const amountHint     = $('amountHint');
+const usdInput       = $('usdInput');
+const usdHint        = $('usdHint');
+const unitSuffix     = $('unitSuffix');
+const unitSeg        = $('unitSeg');
+const quickChips     = $('quickChips');
+const holdingsValue  = $('holdingsValue');
+const valueMeta      = $('valueMeta');
+const copyValueBtn   = $('copyValue');
+
+const rangeSeg       = $('rangeSeg');
+const rangeSummary   = $('rangeSummary');
+const historyArea    = $('historyArea');
+const historyNote    = $('historyNote');
+
+const projectionBody = $('projectionBody');
+const projHeadRow    = $('projHeadRow');
+const customTargetIn = $('customTarget');
+const addTargetBtn   = $('addTargetBtn');
+const targetFeedback = $('targetFeedback');
+const targetBar      = $('targetBar');
+const targetChips    = $('targetChips');
+const clearTargets   = $('clearTargets');
+const chartArea      = $('chartArea');
+const shareBtn       = $('shareBtn');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // State
 // ─────────────────────────────────────────────────────────────────────────────
-let currentPrice        = null;
-let change24h           = null;
-let btcMarketCap        = null;
+let currentPrice         = null;
+let previousPrice        = null;   // drives the tick flash on refresh
+let change24h            = null;
+let btcMarketCap         = null;
 let btcCirculatingSupply = null;
-let lastEdited          = 'btc';
-let refreshTimer        = null;
-let countdownTimer      = null;
-let secondsLeft         = 60;
-let projChart           = null;
+
+let amountBTC   = 1;       // canonical holding, always in BTC
+let activeUnit  = 'btc';
+let lastEdited  = 'amount';
+let tickPending = false;   // set by a price refresh, consumed by the next render
+
+let refreshTimer   = null;
+let countdownTimer = null;
+let secondsLeft    = 60;
+
+let projChart    = null;
+let historyChart = null;
+let historyDays  = 30;
+let historyLine  = null;   // colour of the active history series
+let ladderPrices = [];     // target price per ladder bar, for tooltips
+let sortKey      = 'price';
+let sortDir      = 1;       // 1 ascending, -1 descending
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Formatters
 // ─────────────────────────────────────────────────────────────────────────────
 function fmtUSD(n) {
     return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Whole dollars — right for target prices and big projections, where cents are noise
+function fmtUSD0(n) {
+    return '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
 function fmtBTC(n) {
@@ -808,8 +1388,7 @@ function fmtBTC(n) {
 }
 
 function fmtPct(n) {
-    const sign = n >= 0 ? '+' : '';
-    return sign + n.toFixed(2) + '%';
+    return (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 }
 
 function fmtMarketCap(n) {
@@ -823,6 +1402,15 @@ function fmtSupply(n) {
     return Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' BTC';
 }
 
+// Short axis labels: $1.2M / $850K / $420
+function fmtAxisUSD(val) {
+    if (val >= 1e12) return '$' + (val / 1e12).toFixed(1) + 'T';
+    if (val >= 1e9)  return '$' + (val / 1e9).toFixed(1) + 'B';
+    if (val >= 1e6)  return '$' + (val / 1e6).toFixed(1) + 'M';
+    if (val >= 1000) return '$' + (val / 1000).toFixed(0) + 'K';
+    return '$' + Math.round(val);
+}
+
 // "4320 min" is not a useful thing to tell someone
 function fmtAge(ms) {
     const mins = Math.round(ms / 60000);
@@ -830,6 +1418,44 @@ function fmtAge(ms) {
     if (mins < 60) return `${mins} min`;
     const hrs = Math.round(mins / 60);
     return hrs === 1 ? '1 hour' : `${hrs} hours`;
+}
+
+// Display an amount in the active unit, without exponent notation on large sat counts
+function fmtAmount(btc, unit) {
+    const u = UNITS[unit];
+    const scaled = btc * u.factor;
+    if (u.decimals === 0) return Math.round(scaled).toLocaleString('en-US');
+    const fixed = scaled.toFixed(u.decimals);
+    const [whole, dec = ''] = fixed.split('.');
+    const trimmed = dec.replace(/0+$/, '');
+    const grouped = Number(whole).toLocaleString('en-US');
+    return trimmed ? `${grouped}.${trimmed}` : grouped;
+}
+
+// Accept "1,000", " 1 000 ", "$1,000.50" — a number input that rejects a thousands
+// separator is a papercut people hit constantly when pasting figures.
+function parseLoose(str) {
+    if (typeof str !== 'string') return NaN;
+    const cleaned = str.replace(/[$,\s_]/g, '');
+    if (cleaned === '') return NaN;
+    if (!/^-?\d*\.?\d*$/.test(cleaned)) return NaN;
+    return parseFloat(cleaned);
+}
+
+function targetLabel(price) {
+    if (price >= 1e6) return '$' + (price / 1e6).toFixed(price % 1e6 === 0 ? 0 : 2) + 'M';
+    if (price >= 1000) {
+        const k = price / 1000;
+        return '$' + (Number.isInteger(k) ? k : k.toFixed(1)) + 'K';
+    }
+    return '$' + Math.round(price);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Skeletons
+// ─────────────────────────────────────────────────────────────────────────────
+function clearSkeletons() {
+    document.querySelectorAll('.skeleton').forEach(el => el.classList.remove('skeleton'));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -856,14 +1482,10 @@ function friendlyError(err) {
 
 // The converter is meaningless without a price — do not let it look interactive when it is not
 function setConverterEnabled(on) {
-    btcInput.disabled = !on;
+    amountInput.disabled = !on;
     usdInput.disabled = !on;
-}
-
-// Manual retry from the chip row
-function retryNow() {
-    fetchBtcPrice();
-    startRefreshCycle();
+    copyValueBtn.disabled = !on;
+    quickChips.querySelectorAll('button').forEach(b => { b.disabled = !on; });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -897,9 +1519,10 @@ async function fetchBtcPrice() {
     try {
         const res  = await fetchWithRetry(BTC_URL);
         const data = await res.json();
-        currentPrice        = data.bitcoin.usd;
-        change24h           = data.bitcoin.usd_24h_change;
-        btcMarketCap        = data.bitcoin.usd_market_cap;
+        previousPrice        = currentPrice;
+        currentPrice         = data.bitcoin.usd;
+        change24h            = data.bitcoin.usd_24h_change;
+        btcMarketCap         = data.bitcoin.usd_market_cap;
         btcCirculatingSupply = btcMarketCap / currentPrice;
 
         // Caching is best-effort. Left unguarded, a storage failure (Safari private
@@ -916,9 +1539,10 @@ async function fetchBtcPrice() {
         setConverterEnabled(true);
         // Status first: it reports the state of the FETCH, so a later rendering error
         // must not be able to leave it stuck on "Fetching latest BTC price…".
-        setStatus('ok', `Live price &mdash; ${fmtUSD(currentPrice)}`);
+        setStatus('ok', `Live &mdash; ${fmtUSD(currentPrice)}`);
+        tickPending = previousPrice != null;
         updateBtcTicker();
-        recalculate();
+        renderAll();
     } catch (err) {
         console.error('BTC fetch error:', err);
         const cached = loadBtcCache();
@@ -930,8 +1554,9 @@ async function fetchBtcPrice() {
             btcCirculatingSupply = btcMarketCap ? btcMarketCap / currentPrice : null;
             setConverterEnabled(true);
             setStatus('stale', `Cached price (${fmtAge(cacheAge)} old) &mdash; live update failed`);
+            tickPending = previousPrice != null;
             updateBtcTicker();
-            recalculate();
+            renderAll();
         } else {
             setConverterEnabled(false);
             showEmptyProjections();
@@ -945,14 +1570,63 @@ function loadBtcCache() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Update tickers
+// Ticker — number count-up plus a one-beat tint, so a live page visibly moves
 // ─────────────────────────────────────────────────────────────────────────────
+// One shared frame handle let the holdings count-up cancel the price count-up
+// mid-flight, freezing the ticker on a partial number. Track them per element.
+const countUpFrames = new WeakMap();
+function animateNumber(el, from, to, format, ms = 550) {
+    const pending = countUpFrames.get(el);
+    if (pending) { cancelAnimationFrame(pending.frame); clearTimeout(pending.guard); }
+    countUpFrames.delete(el);
+
+    // requestAnimationFrame does not run while the document is not being painted, so an
+    // animated value would sit frozen on its FIRST frame — i.e. the old price. Never let
+    // the displayed number depend on whether an animation got to run.
+    if (REDUCED_MOTION || document.visibilityState === 'hidden' ||
+        from == null || !Number.isFinite(from) || from === to) {
+        el.textContent = format(to);
+        return;
+    }
+
+    const t0 = performance.now();
+    const settle = () => {
+        const p = countUpFrames.get(el);
+        if (p) { cancelAnimationFrame(p.frame); countUpFrames.delete(el); }
+        el.textContent = format(to);
+    };
+    const step = (now) => {
+        const k = Math.min(1, (now - t0) / ms);
+        const eased = 1 - Math.pow(1 - k, 3);
+        el.textContent = format(from + (to - from) * eased);
+        if (k < 1) {
+            const rec = countUpFrames.get(el);
+            if (rec) rec.frame = requestAnimationFrame(step);
+        } else settle();
+    };
+    // Belt and braces: if the frames stop arriving mid-flight (tab hidden, throttled),
+    // this still lands the element on the true value.
+    countUpFrames.set(el, { frame: requestAnimationFrame(step), guard: setTimeout(settle, ms + 250) });
+}
+
+function flash(el, dir) {
+    if (REDUCED_MOTION || !dir) return;
+    const cls = dir > 0 ? 'flash-up' : 'flash-down';
+    el.classList.remove('flash-up', 'flash-down');
+    void el.offsetWidth;            // restart the animation on a repeated tick
+    el.classList.add(cls);
+}
+
 function updateBtcTicker() {
     if (currentPrice == null) return;
-    livePriceEl.textContent = fmtUSD(currentPrice);
+    clearSkeletons();
+    animateNumber(livePriceEl, previousPrice, currentPrice, fmtUSD);
+    if (previousPrice != null && previousPrice !== currentPrice) {
+        flash(railPriceEl, currentPrice > previousPrice ? 1 : -1);
+    }
     if (change24h != null) {
-        priceChangeEl.textContent = `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}% (24h)`;
-        priceChangeEl.className = `price-change ${change24h >= 0 ? 'up' : 'down'}`;
+        priceChangeEl.textContent = `${fmtPct(change24h)} 24h`;
+        priceChangeEl.className = `tick-delta ${change24h >= 0 ? 'up' : 'down'}`;
     }
 }
 
@@ -967,7 +1641,7 @@ function startRefreshCycle() {
     countdownTimer = setInterval(() => {
         secondsLeft--;
         if (secondsLeft <= 0) secondsLeft = 60;
-        refreshInfoEl.textContent = `Refreshes in ${secondsLeft}s`;
+        refreshInfoEl.textContent = `Refresh in ${secondsLeft}s`;
     }, 1000);
 
     refreshTimer = setInterval(() => {
@@ -987,7 +1661,7 @@ function stopRefreshCycle() {
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
         stopRefreshCycle();
-        refreshInfoEl.textContent = 'Paused while this tab is in the background';
+        refreshInfoEl.textContent = 'Paused (background)';
     } else {
         fetchBtcPrice();
         startRefreshCycle();
@@ -995,22 +1669,203 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Calculator — bidirectional conversion
+// Units + amount handling
 // ─────────────────────────────────────────────────────────────────────────────
-btcInput.addEventListener('input', () => { lastEdited = 'btc'; recalculate(); });
-usdInput.addEventListener('input', () => { lastEdited = 'usd'; recalculate(); });
-
-function recalculate() {
-    if (currentPrice == null) return;
-    if (lastEdited === 'btc') {
-        const btc = parseFloat(btcInput.value);
-        usdInput.value = (!isNaN(btc) && btc >= 0) ? (btc * currentPrice).toFixed(2) : '';
-    } else {
-        const usd = parseFloat(usdInput.value);
-        btcInput.value = (!isNaN(usd) && usd >= 0) ? fmtBTC(usd / currentPrice) : '';
-    }
-    updateProjections();
+function renderQuickChips() {
+    const u = UNITS[activeUnit];
+    quickChips.innerHTML = u.presets.map(p =>
+        `<button type="button" data-preset="${p}">${fmtAmount(p / u.factor, activeUnit)}</button>`
+    ).join('');
+    if (currentPrice == null) quickChips.querySelectorAll('button').forEach(b => { b.disabled = true; });
 }
+
+function setUnit(unit) {
+    if (!UNITS[unit] || unit === activeUnit) return;
+    activeUnit = unit;
+    unitSuffix.textContent = UNITS[unit].label;
+    unitSeg.querySelectorAll('button').forEach(b =>
+        b.setAttribute('aria-pressed', String(b.dataset.unit === unit)));
+    amountInput.value = fmtAmount(amountBTC, unit);
+    amountInput.placeholder = fmtAmount(1, unit);
+    renderQuickChips();
+    setHint(amountHint, `= ${fmtBTC(amountBTC)} BTC`, false);
+    syncUrl();
+}
+
+function setHint(el, msg, invalid) {
+    el.textContent = msg || '';
+    el.className = `field-hint${invalid ? ' invalid' : ''}`;
+}
+
+amountInput.addEventListener('input', () => {
+    lastEdited = 'amount';
+    const raw = parseLoose(amountInput.value);
+    if (amountInput.value.trim() === '') {
+        amountBTC = 0;
+        setHint(amountHint, '', false);
+    } else if (!Number.isFinite(raw) || raw < 0) {
+        setHint(amountHint, 'Enter a positive number', true);
+        return;                       // leave the last good amount in place
+    } else {
+        amountBTC = raw / UNITS[activeUnit].factor;
+        setHint(amountHint, activeUnit === 'btc' ? '' : `= ${fmtBTC(amountBTC)} BTC`, false);
+    }
+    renderAll();
+    syncUrl();
+});
+
+// Tidy the formatting once they are done typing, never mid-keystroke — reformatting
+// live fights the caret and makes the field feel like it is arguing with you.
+amountInput.addEventListener('blur', () => {
+    if (amountInput.value.trim() === '') return;
+    if (Number.isFinite(parseLoose(amountInput.value))) {
+        amountInput.value = fmtAmount(amountBTC, activeUnit);
+    }
+});
+
+usdInput.addEventListener('input', () => {
+    lastEdited = 'usd';
+    const raw = parseLoose(usdInput.value);
+    if (usdInput.value.trim() === '') {
+        amountBTC = 0;
+        setHint(usdHint, '', false);
+    } else if (!Number.isFinite(raw) || raw < 0) {
+        setHint(usdHint, 'Enter a positive dollar amount', true);
+        return;
+    } else if (currentPrice) {
+        amountBTC = raw / currentPrice;
+        setHint(usdHint, `= ${fmtBTC(amountBTC)} BTC`, false);
+    }
+    amountInput.value = fmtAmount(amountBTC, activeUnit);
+    renderAll();
+    syncUrl();
+});
+
+usdInput.addEventListener('blur', () => {
+    if (usdInput.value.trim() === '') return;
+    const raw = parseLoose(usdInput.value);
+    if (Number.isFinite(raw)) usdInput.value = Number(raw).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+});
+
+unitSeg.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-unit]');
+    if (btn) setUnit(btn.dataset.unit);
+});
+
+quickChips.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-preset]');
+    if (!btn) return;
+    amountBTC = Number(btn.dataset.preset) / UNITS[activeUnit].factor;
+    amountInput.value = fmtAmount(amountBTC, activeUnit);
+    lastEdited = 'amount';
+    setHint(amountHint, activeUnit === 'btc' ? '' : `= ${fmtBTC(amountBTC)} BTC`, false);
+    renderAll();
+    syncUrl();
+});
+
+copyValueBtn.addEventListener('click', () => {
+    if (currentPrice == null) return;
+    copyText(fmtUSD(amountBTC * currentPrice), copyValueBtn, 'Copy');
+});
+
+async function copyText(text, btn, restore) {
+    try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = 'Copied';
+        btn.classList.add('done');
+    } catch {
+        // Clipboard access can be denied outright (insecure context, permissions policy).
+        // Say so rather than showing a success state for something that did not happen.
+        btn.textContent = 'Press Ctrl+C';
+        const sel = window.getSelection();
+        const range = document.createRange();
+        const tmp = document.createElement('span');
+        tmp.textContent = text;
+        tmp.style.position = 'fixed';
+        tmp.style.opacity = '0';
+        document.body.appendChild(tmp);
+        range.selectNodeContents(tmp);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        setTimeout(() => tmp.remove(), 4000);
+    }
+    setTimeout(() => { btn.textContent = restore; btn.classList.remove('done'); }, 2200);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shareable URL state — the answer to "targets only live in this browser"
+// ─────────────────────────────────────────────────────────────────────────────
+let urlSyncTimer = null;
+function syncUrl() {
+    clearTimeout(urlSyncTimer);
+    urlSyncTimer = setTimeout(() => {
+        const parts = [];
+        if (amountBTC > 0) parts.push('a=' + Number(amountBTC.toFixed(8)));
+        if (activeUnit !== 'btc') parts.push('u=' + activeUnit);
+        const customs = getCustomTargets();
+        if (customs.length) parts.push('t=' + customs.join(','));
+        const hash = parts.length ? '#' + parts.join('&') : '';
+        // replaceState, not location.hash — the latter stacks a history entry per keystroke
+        history.replaceState(null, '', location.pathname + location.search + hash);
+    }, 250);
+}
+
+function readUrlState() {
+    const hash = location.hash.replace(/^#/, '');
+    if (!hash) return null;
+    const params = new URLSearchParams(hash);
+    const out = {};
+    const a = parseFloat(params.get('a'));
+    if (Number.isFinite(a) && a >= 0) out.amount = a;
+    const u = params.get('u');
+    if (u && UNITS[u]) out.unit = u;
+    const t = params.get('t');
+    if (t) {
+        out.targets = t.split(',')
+            .map(s => Math.round(parseFloat(s)))
+            .filter(n => Number.isFinite(n) && n > 0);
+    }
+    return out;
+}
+
+// Applying the link state is separate from init because a hash-only URL change is a
+// SAME-document navigation: pasting a share link while the page is already open fires
+// hashchange and never re-runs init. syncUrl uses replaceState, which does not fire
+// hashchange, so this cannot loop back on itself.
+function applyUrlState(urlState) {
+    if (!urlState) { renderTargetChips(); return; }
+    if (urlState.unit) setUnit(urlState.unit);
+    if (urlState.amount != null) {
+        amountBTC = urlState.amount;
+        amountInput.value = fmtAmount(amountBTC, activeUnit);
+        setHint(amountHint, activeUnit === 'btc' ? '' : `= ${fmtBTC(amountBTC)} BTC`, false);
+    }
+    if (urlState.targets && urlState.targets.length) {
+        const customs = getCustomTargets();
+        const fixed = [...DEFAULT_TARGETS, Math.round(ATH_2025)];
+        const added = urlState.targets.filter(p => !customs.includes(p) && !fixed.includes(p));
+        if (added.length) {
+            saveCustomTargets(customs.concat(added));
+            setTargetFeedback(`Added ${added.length} target${added.length === 1 ? '' : 's'} from the shared link.`, 'added');
+        }
+    }
+    renderTargetChips();
+    if (currentPrice != null) renderAll();
+}
+
+window.addEventListener('hashchange', () => applyUrlState(readUrlState()));
+
+shareBtn.addEventListener('click', () => {
+    syncUrl();
+    // syncUrl is debounced; build the string here so the click is never a beat behind
+    const parts = [];
+    if (amountBTC > 0) parts.push('a=' + Number(amountBTC.toFixed(8)));
+    if (activeUnit !== 'btc') parts.push('u=' + activeUnit);
+    const customs = getCustomTargets();
+    if (customs.length) parts.push('t=' + customs.join(','));
+    const url = location.origin + location.pathname + (parts.length ? '#' + parts.join('&') : '');
+    copyText(url, shareBtn, 'Copy share link');
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Custom targets
@@ -1052,8 +1907,8 @@ function setTargetFeedback(msg, kind) {
 }
 
 function addCustomTarget() {
-    const val = parseFloat(customTargetIn.value);
-    if (isNaN(val) || val <= 0) {
+    const val = parseLoose(customTargetIn.value);
+    if (!Number.isFinite(val) || val <= 0) {
         setTargetFeedback('Enter a price target above $0.', 'rejected');
         return;
     }
@@ -1064,26 +1919,84 @@ function addCustomTarget() {
     const allFixed = [...DEFAULT_TARGETS, Math.round(ATH_2025)];
     if (customs.includes(rounded) || allFixed.includes(rounded)) {
         // Silently swallowing this made a rejected add look identical to a successful one
-        setTargetFeedback(`${fmtUSD(rounded)} is already in the table.`, 'rejected');
+        setTargetFeedback(`${fmtUSD0(rounded)} is already in the table.`, 'rejected');
     } else {
         customs.push(rounded);
         const saved = saveCustomTargets(customs);
         setTargetFeedback(saved
-            ? `Added ${fmtUSD(rounded)} to the table.`
-            : `Added ${fmtUSD(rounded)} — but it can't be saved for next visit.`, 'added');
+            ? `Added ${fmtUSD0(rounded)} to the table.`
+            : `Added ${fmtUSD0(rounded)} — but it can't be saved for next visit.`, 'added');
     }
     customTargetIn.value = '';
-    updateProjections();
+    renderTargetChips();
+    renderAll();
+    syncUrl();
 }
-
-customTargetIn.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); addCustomTarget(); }
-});
 
 function removeCustomTarget(price) {
     saveCustomTargets(getCustomTargets().filter(t => t !== price));
-    setTargetFeedback(`Removed ${fmtUSD(price)} from the table.`, 'rejected');
-    updateProjections();
+    setTargetFeedback(`Removed ${fmtUSD0(price)} from the table.`, 'rejected');
+    renderTargetChips();
+    renderAll();
+    syncUrl();
+}
+
+function renderTargetChips() {
+    const customs = getCustomTargets().slice().sort((a, b) => a - b);
+    targetBar.hidden = customs.length === 0;
+    targetChips.innerHTML = customs.map(p =>
+        `<span class="target-chip">${fmtUSD0(p)}` +
+        `<button type="button" class="btn-danger" data-remove="${p}" ` +
+        `title="Remove this target" aria-label="Remove the ${fmtUSD0(p)} target">&times;</button></span>`
+    ).join('');
+}
+
+addTargetBtn.addEventListener('click', addCustomTarget);
+customTargetIn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); addCustomTarget(); }
+});
+targetChips.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-remove]');
+    if (btn) removeCustomTarget(Number(btn.dataset.remove));
+});
+clearTargets.addEventListener('click', () => {
+    const n = getCustomTargets().length;
+    saveCustomTargets([]);
+    setTargetFeedback(`Removed ${n} custom target${n === 1 ? '' : 's'}.`, 'rejected');
+    renderTargetChips();
+    renderAll();
+    syncUrl();
+});
+retryBtn.addEventListener('click', () => { fetchBtcPrice(); startRefreshCycle(); });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Projection points — each entry is { price, label, type }
+// types: 'default' | 'ath' | 'custom' | 'current'
+// ─────────────────────────────────────────────────────────────────────────────
+function buildPoints() {
+    const points = [];
+
+    for (const p of DEFAULT_TARGETS) {
+        points.push({ price: p, label: targetLabel(p), type: 'default' });
+    }
+    points.push({ price: ATH_2025, label: '2025 ATH', type: 'ath' });
+    for (const p of getCustomTargets()) {
+        points.push({ price: p, label: targetLabel(p), type: 'custom' });
+    }
+    if (currentPrice != null) {
+        points.push({ price: currentPrice, label: 'Current', type: 'current' });
+    }
+
+    points.sort((a, b) => a.price - b.price);
+    return points;
+}
+
+function pointColor(type) {
+    const t = getDeckTheme();
+    if (type === 'ath')    return t.text;      // light — the old near-black vanished on navy
+    if (type === 'custom') return t.magenta;
+    if (type === 'current') return currentPrice >= ATH_2025 ? t.live : t.down;
+    return t.accent;
 }
 
 // Shown whenever there is no price to project from — the table used to sit empty
@@ -1094,156 +2007,204 @@ function showEmptyProjections() {
         `projections appear as soon as pricing loads.</td></tr>`;
     if (projChart) { projChart.destroy(); projChart = null; }
     chartArea.hidden = true;
+    holdingsValue.textContent = '—';
+    valueMeta.textContent = 'Waiting for live pricing';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Build sorted point list — each entry has { price, label, type }
-// types: 'default' | 'ath' | 'custom' | 'current'
+// Render — readout, stat tiles, table, ladder chart
 // ─────────────────────────────────────────────────────────────────────────────
-function buildPoints() {
-    const customs = getCustomTargets();
-    const points  = [];
-
-    // Default targets
-    for (const p of DEFAULT_TARGETS) {
-        points.push({ price: p, label: '$' + (p / 1000).toFixed(0) + 'K', type: 'default' });
-    }
-
-    // 2025 ATH
-    points.push({ price: ATH_2025, label: '(2025 ATH) $126.2K', type: 'ath' });
-
-    // Custom targets
-    for (const p of customs) {
-        const k = p >= 1000 ? '$' + (p / 1000).toFixed(0) + 'K' : '$' + p;
-        points.push({ price: p, label: k, type: 'custom' });
-    }
-
-    // Current price — always insert, sorted into correct position
-    if (currentPrice != null) {
-        points.push({ price: currentPrice, label: 'Current', type: 'current' });
-    }
-
-    // Sort ascending by price
-    points.sort((a, b) => a.price - b.price);
-    return points;
-}
-
-function pointColor(type) {
-    const t = getDeckTheme();
-    if (type === 'ath')    return t.text;      // light — the old near-black vanished on navy
-    if (type === 'custom') return t.magenta;
-    if (type === 'current') {
-        return currentPrice >= ATH_2025 ? t.live : t.down;
-    }
-    return t.accent; // defaults
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Future price projections — table + chart
-// ─────────────────────────────────────────────────────────────────────────────
-function updateProjections() {
+function renderAll() {
     if (currentPrice == null) { showEmptyProjections(); return; }
+    clearSkeletons();
     chartArea.hidden = false;
+    renderReadout();
+    renderStats();
+    renderProjections();
+}
 
-    const btcAmount  = parseFloat(btcInput.value) || 0;
-    const currentVal = btcAmount * currentPrice;
-    const customs    = getCustomTargets();
-    const points     = buildPoints();
+function renderReadout() {
+    const value = amountBTC * currentPrice;
+    const prev  = previousPrice != null ? amountBTC * previousPrice : null;
+    // A live count-up on every keystroke would lag behind the typing; only animate the
+    // 60s price tick, which is the change the visitor did not cause themselves.
+    if (tickPending) { animateNumber(holdingsValue, prev, value, fmtUSD); tickPending = false; }
+    else holdingsValue.textContent = fmtUSD(value);
+    valueMeta.textContent = `${fmtBTC(amountBTC)} BTC at ${fmtUSD(currentPrice)}`;
+
+    // Keep the reverse field in step unless it is the one being typed into
+    if (document.activeElement !== usdInput) {
+        usdInput.value = value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+}
+
+function renderStats() {
+    const value = amountBTC * currentPrice;
+
+    // 24h — the percentage is the market's; the dollar figure is the visitor's
+    const s24 = $('stat24h'), s24s = $('stat24hSub');
+    if (change24h != null) {
+        const dollars = value - (value / (1 + change24h / 100));
+        s24.textContent = fmtPct(change24h);
+        s24.className = `value ${change24h >= 0 ? 'up' : 'down'}`;
+        s24s.textContent = `${dollars >= 0 ? '+' : '-'}${fmtUSD(Math.abs(dollars))} on your position`;
+        s24s.className = `sub ${change24h >= 0 ? 'up' : 'down'}`;
+    } else {
+        s24.textContent = '—'; s24.className = 'value'; s24s.textContent = 'on your position'; s24s.className = 'sub';
+    }
+
+    // Distance from the pinned 2025 all-time high
+    const athPct = ((currentPrice - ATH_2025) / ATH_2025) * 100;
+    const sAth = $('statAth'), sAthSub = $('statAthSub');
+    sAth.textContent = fmtPct(athPct);
+    sAth.className = `value ${athPct >= 0 ? 'up' : 'down'}`;
+    sAthSub.textContent = athPct >= 0
+        ? `${fmtUSD(currentPrice - ATH_2025)} above ${fmtUSD0(ATH_2025)}`
+        : `${fmtUSD(ATH_2025 - currentPrice)} below ${fmtUSD0(ATH_2025)}`;
+
+    // What the same holding would be worth back at that high
+    const athValue = amountBTC * ATH_2025;
+    $('statAthValue').textContent = fmtUSD(athValue);
+    $('statAthValueSub').textContent = `${athValue >= value ? '+' : '-'}${fmtUSD(Math.abs(athValue - value))} vs now`;
+    $('statAthValueSub').className = `sub ${athValue >= value ? 'up' : 'down'}`;
+
+    $('statMktCap').textContent = btcMarketCap ? fmtMarketCap(btcMarketCap) : '—';
+    $('statSupply').textContent = btcCirculatingSupply ? fmtSupply(btcCirculatingSupply) + ' in circulation' : ' ';
+}
+
+function sortValue(row) {
+    switch (sortKey) {
+        case 'value':  return row.value;
+        case 'change': return row.changePct;
+        case 'cap':    return row.cap == null ? -Infinity : row.cap;
+        default:       return row.price;
+    }
+}
+
+function renderProjections() {
+    const currentVal = amountBTC * currentPrice;
+    const rows = buildPoints().map(pt => ({
+        ...pt,
+        value:     amountBTC * pt.price,
+        changePct: ((pt.price - currentPrice) / currentPrice) * 100,
+        changeUsd: amountBTC * pt.price - currentVal,
+        cap:       btcCirculatingSupply ? btcCirculatingSupply * pt.price : null,
+    }));
+
+    // The chart ladder always reads low-to-high regardless of how the table is sorted;
+    // a bar chart re-ordered by "change" would be a different, less useful picture.
+    renderLadder(rows);
+
+    const sorted = rows.slice().sort((a, b) => (sortValue(a) - sortValue(b)) * sortDir);
 
     let html = '';
-    const chartLabels = [];
-    const chartValues = [];
-    const chartColors = [];
+    for (const r of sorted) {
+        const changeClass = r.changePct >= 0 ? 'positive' : 'negative';
+        const sign = r.changeUsd >= 0 ? '+' : '-';   // losses printed unsigned before
+        const cap  = r.cap != null ? fmtMarketCap(r.cap) : '—';
 
-    for (const pt of points) {
-        const holdingsVal = btcAmount * pt.price;
-        const changePct   = ((pt.price - currentPrice) / currentPrice) * 100;
-        const changeDollar = holdingsVal - currentVal;
-        const changeClass = changePct >= 0 ? 'positive' : 'negative';
-        const sign        = changeDollar >= 0 ? '+' : '-';   // losses printed unsigned before
-
-        // Market cap estimate
-        const estMktCap = btcCirculatingSupply ? fmtMarketCap(btcCirculatingSupply * pt.price) : '--';
-
-        // Row label
-        let priceLabel = fmtUSD(pt.price);
+        let priceLabel = fmtUSD(r.price);
         let rowClass   = '';
-        let removeBtn  = '';
 
-        if (pt.type === 'ath') {
-            priceLabel = `${fmtUSD(pt.price)} <span class="row-note">(2025 ATH)</span>`;
+        if (r.type === 'ath') {
+            priceLabel = `${fmtUSD(r.price)} <span class="row-note">(2025 ATH)</span>`;
             rowClass   = 'ath-row';
-        } else if (pt.type === 'current') {
-            priceLabel = `${fmtUSD(pt.price)} <span class="row-note">(current)</span>`;
+        } else if (r.type === 'current') {
+            priceLabel = `${fmtUSD(r.price)} <span class="row-note">(current)</span>`;
             rowClass   = 'current-row';
-        } else if (pt.type === 'custom') {
-            removeBtn = ` <button class="btn-sm btn-danger" onclick="removeCustomTarget(${pt.price})"` +
-                        ` title="Remove this target" aria-label="Remove the ${fmtUSD(pt.price)} target">&times;</button>`;
+        } else if (r.type === 'custom') {
+            priceLabel = `${fmtUSD(r.price)} <span class="row-note">(custom)</span>`;
+            rowClass   = 'custom-row';
         }
 
         html += `<tr class="${rowClass}">`;
-        html += `<td>${priceLabel}${removeBtn}</td>`;
-        html += `<td>${fmtUSD(holdingsVal)}</td>`;
-        html += `<td class="${changeClass}">${fmtPct(changePct)} (${sign}${fmtUSD(Math.abs(changeDollar))})</td>`;
-        html += `<td>${estMktCap}</td>`;
+        html += `<td data-label="Target">${priceLabel}</td>`;
+        html += `<td data-label="Holdings value">${fmtUSD(r.value)}</td>`;
+        html += `<td data-label="Change vs current" class="${changeClass}">${fmtPct(r.changePct)} (${sign}${fmtUSD(Math.abs(r.changeUsd))})</td>`;
+        html += `<td data-label="Est. market cap">${cap}</td>`;
         html += `</tr>`;
-
-        chartLabels.push(pt.type === 'current' ? 'Current' : pt.label);
-        chartValues.push(holdingsVal);
-        chartColors.push(pointColor(pt.type));
     }
-
     projectionBody.innerHTML = html;
-    updateChart(chartLabels, chartValues, chartColors);
+}
+
+// Sortable headers
+projHeadRow.addEventListener('click', (e) => {
+    const th = e.target.closest('th[data-sort]');
+    if (th) applySort(th.dataset.sort);
+});
+projHeadRow.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const th = e.target.closest('th[data-sort]');
+    if (th) { e.preventDefault(); applySort(th.dataset.sort); }
+});
+
+function applySort(key) {
+    if (sortKey === key) sortDir = -sortDir;
+    else { sortKey = key; sortDir = 1; }
+    projHeadRow.querySelectorAll('th[data-sort]').forEach(th => {
+        const active = th.dataset.sort === sortKey;
+        th.setAttribute('aria-sort', active ? (sortDir === 1 ? 'ascending' : 'descending') : 'none');
+        th.querySelector('.sort-arrow').innerHTML = active && sortDir === -1 ? '&#9660;' : '&#9650;';
+    });
+    if (currentPrice != null) renderProjections();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Chart.js — line chart (deck-themed)
+// Projection ladder — horizontal bars
+//
+// This was a filled LINE chart over a categorical axis, which reads as a timeline so
+// strongly that the x-axis had to carry the label "(not a timeline)". Price targets are
+// discrete categories, so bars are the honest form — and horizontal bars leave room for
+// full dollar labels instead of 45°-rotated ticks.
 // ─────────────────────────────────────────────────────────────────────────────
-function updateChart(labels, values, pointColors) {
-    // Without Chart.js there is no chart to draw, but the table above it is still correct.
-    // Throwing here used to abort the caller mid-way and leave the status chip stuck on
-    // "Fetching latest BTC price…" forever.
+function renderLadder(rows) {
     if (typeof Chart === 'undefined') {
         chartArea.hidden = true;
         return;
     }
-    const ctx = document.getElementById('projectionChart');
-    const t   = getDeckTheme();
+    // Highest target on top, so the ladder climbs the way the numbers do
+    const ordered = rows.slice().sort((a, b) => b.price - a.price);
+    const labels  = ordered.map(r => r.type === 'current' ? 'Current' : r.label);
+    const values  = ordered.map(r => r.value);
+    const colors  = ordered.map(r => pointColor(r.type));
+    ladderPrices  = ordered.map(r => r.price);
 
-    // Mutate in place rather than tearing down and rebuilding the whole chart on every
-    // keystroke. 'none' skips the animation so typing stays responsive.
+    // Keep every bar readable no matter how many targets are in play
+    const box = document.querySelector('.chart-container--ladder');
+    if (box) box.style.height = Math.max(300, ordered.length * 30 + 60) + 'px';
+
     if (projChart) {
         const ds = projChart.data.datasets[0];
-        projChart.data.labels     = labels;
-        ds.data                   = values;
-        ds.pointBackgroundColor   = pointColors;
-        ds.pointBorderColor       = pointColors;
+        projChart.data.labels = labels;
+        ds.data = values;
+        ds.backgroundColor = colors;
+        ds.hoverBackgroundColor = colors;
+        projChart.resize();
         projChart.update('none');
         return;
     }
 
-    projChart = new Chart(ctx, {
-        type: 'line',
+    const t = getDeckTheme();
+    projChart = new Chart($('projectionChart'), {
+        type: 'bar',
         data: {
             labels,
             datasets: [{
-                label: 'Holdings Value (USD)',
+                label: 'Holdings value (USD)',
                 data: values,
-                borderColor: t.accent,
-                backgroundColor: t.fill,
-                fill: true,
-                tension: 0.3,
-                pointBackgroundColor: pointColors,
-                pointBorderColor: pointColors,
-                pointRadius: 7,
-                pointHoverRadius: 10,
-                borderWidth: 2.5,
+                backgroundColor: colors,
+                hoverBackgroundColor: colors,
+                borderWidth: 0,
+                borderRadius: 3,
+                barPercentage: 0.78,
+                categoryPercentage: 0.9,
             }]
         },
         options: {
+            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
+            animation: REDUCED_MOTION ? false : { duration: 400 },
             plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -1257,8 +2218,11 @@ function updateChart(labels, values, pointColors) {
                     padding: 10,
                     displayColors: false,
                     callbacks: {
-                        title: (items) => 'BTC @ ' + items[0].label,
-                        label: (ctx)   => ' Value: ' + fmtUSD(ctx.raw)
+                        title: (items) => {
+                            const p = ladderPrices[items[0].dataIndex];
+                            return p != null ? 'BTC @ ' + fmtUSD(p) : items[0].label;
+                        },
+                        label: (ctx) => ' Value: ' + fmtUSD(ctx.raw),
                     }
                 }
             },
@@ -1266,26 +2230,15 @@ function updateChart(labels, values, pointColors) {
                 x: {
                     grid: { color: t.grid },
                     border: { color: t.grid },
-                    // Titled explicitly: a rising filled line reads as a timeline otherwise
-                    title: { display: true, text: 'BTC price target (not a timeline)',
-                             color: t.faint, font: { family: t.fontMono, size: 10 } },
-                    ticks: { color: t.faint, maxRotation: 45, font: { family: t.fontMono, size: 10 } }
-                },
-                y: {
-                    grid: { color: t.grid },
-                    border: { color: t.grid },
                     title: { display: true, text: 'Holdings value (USD)',
                              color: t.faint, font: { family: t.fontMono, size: 10 } },
-                    ticks: {
-                        color: t.faint,
-                        font: { family: t.fontMono, size: 10 },
-                        callback: (val) => {
-                            if (val >= 1e9)  return '$' + (val / 1e9).toFixed(1) + 'B';
-                            if (val >= 1e6)  return '$' + (val / 1e6).toFixed(1) + 'M';
-                            if (val >= 1000) return '$' + (val / 1000).toFixed(0) + 'K';
-                            return '$' + val;
-                        }
-                    }
+                    ticks: { color: t.faint, font: { family: t.fontMono, size: 10 },
+                             callback: fmtAxisUSD }
+                },
+                y: {
+                    grid: { display: false },
+                    border: { color: t.grid },
+                    ticks: { color: t.faint, font: { family: t.fontMono, size: 10 }, autoSkip: false }
                 }
             }
         }
@@ -1293,11 +2246,176 @@ function updateChart(labels, values, pointColors) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Price history — the one honest line chart on the page
+// ─────────────────────────────────────────────────────────────────────────────
+function loadHistoryCache(days) {
+    try {
+        const all = JSON.parse(localStorage.getItem(HISTORY_KEY)) || {};
+        const entry = all[days];
+        if (!entry || !Array.isArray(entry.points)) return null;
+        if (Date.now() - entry.timestamp > (HISTORY_TTL_MS[days] || 3600000)) return null;
+        return entry;
+    } catch { return null; }
+}
+
+function saveHistoryCache(days, points) {
+    try {
+        const all = JSON.parse(localStorage.getItem(HISTORY_KEY)) || {};
+        all[days] = { points, timestamp: Date.now() };
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(all));
+    } catch (err) {
+        console.warn('Could not cache price history:', err.message);
+    }
+}
+
+async function loadHistory(days) {
+    historyDays = days;
+    rangeSeg.querySelectorAll('button').forEach(b =>
+        b.setAttribute('aria-pressed', String(Number(b.dataset.days) === days)));
+
+    const cached = loadHistoryCache(days);
+    if (cached) { drawHistory(cached.points, days, true); return; }
+
+    historyNote.textContent = 'Loading price history from CoinGecko…';
+    try {
+        const url = `${API_BASE}/coins/bitcoin/market_chart?vs_currency=usd&days=${days}`;
+        const res = await fetchWithRetry(url, 2, 2000);
+        const data = await res.json();
+        if (!Array.isArray(data.prices) || data.prices.length < 2) throw new Error('No price series returned');
+        // Store [timestamp, price] pairs — a compact shape that survives JSON round-tripping
+        const points = data.prices.map(([ts, p]) => [ts, p]);
+        saveHistoryCache(days, points);
+        drawHistory(points, days, false);
+    } catch (err) {
+        console.warn('History fetch failed:', err.message);
+        // The rest of the page is unaffected — say so rather than blanking the panel
+        historyNote.textContent = 'Price history is unavailable right now. Everything else on this page still works.';
+        rangeSummary.textContent = '';
+        rangeSummary.className = 'range-summary';
+    }
+}
+
+function historyTickLabel(ts, days) {
+    const d = new Date(ts);
+    if (days <= 1)  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    if (days <= 90) return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+}
+
+function drawHistory(points, days, fromCache) {
+    const first = points[0][1];
+    const last  = points[points.length - 1][1];
+    const pct   = ((last - first) / first) * 100;
+
+    rangeSummary.textContent = fmtPct(pct);
+    rangeSummary.className = `range-summary ${pct >= 0 ? 'up' : 'down'}`;
+
+    const rangeName = { 1: '24 hours', 7: '7 days', 30: '30 days', 90: '90 days', 365: '1 year' }[days] || `${days} days`;
+    historyNote.textContent =
+        `${rangeName}: ${fmtUSD(first)} → ${fmtUSD(last)} (${fmtPct(pct)})` +
+        (fromCache ? ' · cached' : '');
+
+    if (typeof Chart === 'undefined') {
+        historyArea.innerHTML = '<p class="chart-fallback">The charting library did not load, so the price history chart is unavailable. The figures above still describe the range.</p>';
+        return;
+    }
+
+    const labels = points.map(p => historyTickLabel(p[0], days));
+    const values = points.map(p => p[1]);
+    const t = getDeckTheme();
+    // Down ranges read as down at a glance, not just in the caption
+    const line = pct >= 0 ? t.accent : t.down;
+    historyLine = line;   // read by the fill gradient, which runs during the first draw
+
+    if (historyChart) {
+        historyChart.data.labels = labels;
+        const ds = historyChart.data.datasets[0];
+        ds.data = values;
+        ds.borderColor = line;
+        historyChart.update('none');
+        return;
+    }
+
+    historyChart = new Chart($('historyChart'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'BTC price (USD)',
+                data: values,
+                borderColor: line,
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHitRadius: 14,
+                pointHoverRadius: 4,
+                tension: 0.25,
+                fill: 'start',
+                backgroundColor(ctx) {
+                    const { chart } = ctx;
+                    const { ctx: c, chartArea } = chart;
+                    if (!chartArea) return t.fill;
+                    const base = historyLine || t.accent;
+                    const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                    g.addColorStop(0, hexToRgba(base, 0.30));
+                    g.addColorStop(1, hexToRgba(base, 0));
+                    return g;
+                },
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: REDUCED_MOTION ? false : { duration: 400 },
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: t.tooltipBg,
+                    titleColor: t.text,
+                    bodyColor: t.muted,
+                    borderColor: t.accent,
+                    borderWidth: 1,
+                    titleFont: { family: t.fontMono, size: 11 },
+                    bodyFont:  { family: t.fontMono, size: 12 },
+                    padding: 10,
+                    displayColors: false,
+                    callbacks: { label: (ctx) => ' ' + fmtUSD(ctx.raw) }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    border: { color: t.grid },
+                    ticks: { color: t.faint, font: { family: t.fontMono, size: 9.5 },
+                             maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }
+                },
+                y: {
+                    grid: { color: t.grid },
+                    border: { display: false },
+                    ticks: { color: t.faint, font: { family: t.fontMono, size: 9.5 },
+                             maxTicksLimit: 6, callback: fmtAxisUSD }
+                }
+            }
+        }
+    });
+}
+
+rangeSeg.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-days]');
+    if (btn) loadHistory(Number(btn.dataset.days));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Init
 // ─────────────────────────────────────────────────────────────────────────────
 (async function init() {
     // Nothing is projectable until a price arrives — say so instead of showing bare headers
     setConverterEnabled(false);
+    renderQuickChips();
+
+    // A shared link carries an amount, a unit and a set of targets across devices —
+    // the one thing localStorage could never do.
+    applyUrlState(readUrlState());
     showEmptyProjections();
 
     // Show cached BTC immediately
@@ -1309,15 +2427,15 @@ function updateChart(labels, values, pointColors) {
         btcCirculatingSupply = btcMarketCap ? btcMarketCap / currentPrice : null;
         setConverterEnabled(true);
         updateBtcTicker();
-        recalculate();
-        setStatus('ok', `Cached price &mdash; refreshing&hellip;`);
+        renderAll();
+        setStatus('ok', 'Cached price &mdash; refreshing&hellip;');
     }
 
-    // Fetch fresh BTC price
+    // Fetch fresh BTC price, then the history series. Sequential on purpose: two
+    // simultaneous calls to a free, unauthenticated API is how you earn a 429.
     await fetchBtcPrice();
-
-    // Start auto-refresh
     startRefreshCycle();
+    loadHistory(historyDays);
 })();
 </script>
 </body>

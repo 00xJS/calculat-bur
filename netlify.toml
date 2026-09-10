@@ -1,10 +1,14 @@
 # The previous rule here set Cache-Control for /data/*, a path this site does not have.
 # Netlify already serves HTML with must-revalidate, so these are security headers instead.
 #
-# CSP notes: the page is a single file with an inline <style>, an inline <script>, and
-# inline onclick handlers, so 'unsafe-inline' is required for script-src and style-src.
-# Everything else is locked down: one CDN for Chart.js, one API for pricing, data: for
-# the emoji-SVG favicon.
+# CSP notes: the page is a single file with an inline <style> and an inline <script>, so
+# 'unsafe-inline' is required for script-src and style-src. (Inline onclick attributes are
+# gone — every handler is now addEventListener — but an inline <script> block needs
+# 'unsafe-inline' just the same. Dropping it would take either a CSP hash, which silently
+# breaks the page on any un-rehashed edit, or splitting the app into separate .js/.css
+# files, which would end the single-file property the fleet copies from this site.)
+# Everything else is locked down: one CDN for Chart.js, one API for pricing (both the
+# spot price and the market_chart history series), data: for the emoji-SVG favicon.
 [[headers]]
   for = "/*"
   [headers.values]
