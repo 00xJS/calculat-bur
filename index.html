@@ -1092,6 +1092,8 @@
                     <button type="button" data-days="30"  aria-pressed="true">30D</button>
                     <button type="button" data-days="90"  aria-pressed="false">90D</button>
                     <button type="button" data-days="365" aria-pressed="false">1Y</button>
+                    <button type="button" data-days="1825" aria-pressed="false">5Y</button>
+                    <button type="button" data-days="3650" aria-pressed="false">10Y</button>
                 </div>
             </div>
 
@@ -1200,9 +1202,15 @@
             into this page as a fixed reference point. It is not fetched live and does not update on its
             own if a new record is set.</li>
 
-            <li><strong>The price history chart is real market data</strong> from CoinGecko, unlike the
-            projections. It is cached briefly in your browser so switching ranges does not hammer a free
-            API. Past prices say nothing about future ones.</li>
+            <li><strong>The price history chart is real market data</strong>, unlike the projections.
+            Ranges up to 1 year come from CoinGecko; <strong>5Y and 10Y come from Kraken</strong>, because
+            CoinGecko's free tier refuses any window wider than 365 days. The two sources price Bitcoin
+            slightly differently &mdash; Kraken is one exchange's BTC/USD, CoinGecko is a market-wide
+            average &mdash; so expect small discrepancies where the ranges meet. The caption under the
+            chart always names the source it drew. The 5Y and 10Y views use a <strong>logarithmic
+            axis</strong> (also stated in the caption): across a decade Bitcoin moves roughly 200x, and on
+            a linear axis every year but the last flattens into the baseline. Each range is cached in your
+            browser so switching does not hammer a free API. Past prices say nothing about future ones.</li>
 
             <li><strong>Targets you add stay in this browser.</strong> They will be here next visit but
             not on another device &mdash; use <em>Copy share link</em> to carry an amount and a set of
@@ -1253,8 +1261,18 @@ const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000;
 // so flipping between 24H/7D/30D does not spend the rate limit that the 60s price poll
 // already competes for. Intraday moves fast; a year of daily closes does not.
 const HISTORY_TTL_MS = { 1: 5 * 60 * 1000, 7: 30 * 60 * 1000, 30: 60 * 60 * 1000,
-                         90: 6 * 60 * 60 * 1000, 365: 12 * 60 * 60 * 1000 };
-const HISTORY_RANGES = [1, 7, 30, 90, 365];
+                         90: 6 * 60 * 60 * 1000, 365: 12 * 60 * 60 * 1000,
+                         krakenWeekly: 24 * 60 * 60 * 1000 };
+
+// CoinGecko's PUBLIC (keyless) API refuses any market_chart window wider than a year:
+// "days=730" comes back 401 / error_code 10012, not a truncated series. So the 5Y and 10Y
+// ranges come from Kraken's public OHLC endpoint instead — one keyless request returns
+// ~676 weekly candles going back to 2013, enough for both. It is a simple GET with no
+// custom headers, so it is a CORS "simple request" and never triggers a preflight
+// (Kraken answers OPTIONS with a 404, which would otherwise have blocked it).
+const COINGECKO_MAX_DAYS = 365;
+const KRAKEN_WEEKLY_URL  = 'https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=10080';
+const KRAKEN_CACHE_KEY   = 'krakenWeekly';
 
 // Units. Everything is stored internally in BTC; `factor` converts to the display unit.
 const UNITS = {
@@ -2268,16 +2286,53 @@ function saveHistoryCache(days, points) {
     }
 }
 
+// One request covers every long range: fetch the full weekly series once, then slice it
+// per range. Kraken returns [time(s), open, high, low, close, vwap, volume, count].
+async function fetchKrakenWeekly() {
+    const cached = loadHistoryCache(KRAKEN_CACHE_KEY);
+    if (cached) return { points: cached.points, cached: true };
+
+    const res  = await fetchWithRetry(KRAKEN_WEEKLY_URL, 2, 2000);
+    const data = await res.json();
+    // Kraken reports failure in a 200 body, so an ok status is not enough
+    if (Array.isArray(data.error) && data.error.length) throw new Error(data.error.join('; '));
+    const result = data.result || {};
+    // The pair key is the venue's own name (XXBTZUSD), not what was asked for
+    const pairKey = Object.keys(result).find(k => k !== 'last');
+    const rows = pairKey ? result[pairKey] : null;
+    if (!Array.isArray(rows) || rows.length < 2) throw new Error('No OHLC series returned');
+
+    const points = rows
+        .map(r => [r[0] * 1000, parseFloat(r[4])])      // seconds -> ms, close price
+        .filter(pt => Number.isFinite(pt[0]) && Number.isFinite(pt[1]));
+    if (points.length < 2) throw new Error('OHLC series had no usable closes');
+
+    saveHistoryCache(KRAKEN_CACHE_KEY, points);
+    return { points, cached: false };
+}
+
 async function loadHistory(days) {
     historyDays = days;
     rangeSeg.querySelectorAll('button').forEach(b =>
         b.setAttribute('aria-pressed', String(Number(b.dataset.days) === days)));
 
-    const cached = loadHistoryCache(days);
-    if (cached) { drawHistory(cached.points, days, true); return; }
+    const long = days > COINGECKO_MAX_DAYS;
 
-    historyNote.textContent = 'Loading price history from CoinGecko…';
+    if (!long) {
+        const cached = loadHistoryCache(days);
+        if (cached) { drawHistory(cached.points, days, true, 'CoinGecko'); return; }
+    }
+
+    historyNote.textContent = `Loading price history from ${long ? 'Kraken' : 'CoinGecko'}…`;
     try {
+        if (long) {
+            const { points, cached } = await fetchKrakenWeekly();
+            const cutoff = Date.now() - days * 86400000;
+            const win = points.filter(pt => pt[0] >= cutoff);
+            // Kraken's series starts in 2013; if a range predates it, show everything there is
+            drawHistory(win.length > 1 ? win : points, days, cached, 'Kraken');
+            return;
+        }
         const url = `${API_BASE}/coins/bitcoin/market_chart?vs_currency=usd&days=${days}`;
         const res = await fetchWithRetry(url, 2, 2000);
         const data = await res.json();
@@ -2285,7 +2340,7 @@ async function loadHistory(days) {
         // Store [timestamp, price] pairs — a compact shape that survives JSON round-tripping
         const points = data.prices.map(([ts, p]) => [ts, p]);
         saveHistoryCache(days, points);
-        drawHistory(points, days, false);
+        drawHistory(points, days, false, 'CoinGecko');
     } catch (err) {
         console.warn('History fetch failed:', err.message);
         // The rest of the page is unaffected — say so rather than blanking the panel
@@ -2297,12 +2352,14 @@ async function loadHistory(days) {
 
 function historyTickLabel(ts, days) {
     const d = new Date(ts);
-    if (days <= 1)  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    if (days <= 90) return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    if (days <= 1)    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    if (days <= 90)   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    // Over a decade, six "Mon 'YY" ticks land years apart and the month is just noise
+    if (days <= 1825) return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    return d.toLocaleDateString('en-US', { year: 'numeric' });
 }
 
-function drawHistory(points, days, fromCache) {
+function drawHistory(points, days, fromCache, source) {
     const first = points[0][1];
     const last  = points[points.length - 1][1];
     const pct   = ((last - first) / first) * 100;
@@ -2310,9 +2367,16 @@ function drawHistory(points, days, fromCache) {
     rangeSummary.textContent = fmtPct(pct);
     rangeSummary.className = `range-summary ${pct >= 0 ? 'up' : 'down'}`;
 
-    const rangeName = { 1: '24 hours', 7: '7 days', 30: '30 days', 90: '90 days', 365: '1 year' }[days] || `${days} days`;
+    const rangeName = { 1: '24 hours', 7: '7 days', 30: '30 days', 90: '90 days',
+                        365: '1 year', 1825: '5 years', 3650: '10 years' }[days] || `${days} days`;
+    // Across a decade BTC moves ~200x, and on a linear axis every year before the last
+    // flattens into the baseline. Log makes the whole span readable — and saying so in
+    // the caption keeps it from being a silent change of what the chart means.
+    const useLog = days > COINGECKO_MAX_DAYS;
     historyNote.textContent =
         `${rangeName}: ${fmtUSD(first)} → ${fmtUSD(last)} (${fmtPct(pct)})` +
+        (useLog ? ' · log scale' : '') +
+        (source ? ` · ${source}` : '') +
         (fromCache ? ' · cached' : '');
 
     if (typeof Chart === 'undefined') {
@@ -2326,6 +2390,13 @@ function drawHistory(points, days, fromCache) {
     // Down ranges read as down at a glance, not just in the caption
     const line = pct >= 0 ? t.accent : t.down;
     historyLine = line;   // read by the fill gradient, which runs during the first draw
+
+    // Chart.js builds the scale object once, so switching linear <-> logarithmic has to
+    // tear the chart down rather than mutate options in place.
+    if (historyChart && (historyChart.options.scales.y.type === 'logarithmic') !== useLog) {
+        historyChart.destroy();
+        historyChart = null;
+    }
 
     if (historyChart) {
         historyChart.data.labels = labels;
@@ -2390,6 +2461,7 @@ function drawHistory(points, days, fromCache) {
                              maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }
                 },
                 y: {
+                    type: useLog ? 'logarithmic' : 'linear',
                     grid: { color: t.grid },
                     border: { display: false },
                     ticks: { color: t.faint, font: { family: t.fontMono, size: 9.5 },

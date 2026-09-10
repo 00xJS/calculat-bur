@@ -20,7 +20,7 @@ A dashboard rather than a stack of sections:
 - **Live BTC Price Ticker** — Current BTC/USD from CoinGecko with 24h change %, auto-refreshing every 60 seconds, pausing while the tab is backgrounded. A price change counts up to its new value and tints the ticker green or red for one beat
 - **BTC/USD Converter** — Bidirectional, instant, satoshi-level precision. Enter the holding in **BTC, mBTC or sats** via a unit switch, or start from a dollar amount. Inputs accept `1,000` and `$1,000` as readily as `1000`, and reformat on blur
 - **Quick amounts** — One-tap presets appropriate to the selected unit
-- **Price History Chart** — Real BTC market data over 24H / 7D / 30D / 90D / 1Y from CoinGecko's `market_chart` endpoint, with the range's open, close and percentage change stated in text beneath it. Each range is cached in the browser (5 minutes for intraday, up to 12 hours for a year) so switching ranges does not exhaust a free, unauthenticated API
+- **Price History Chart** — Real BTC market data over 24H / 7D / 30D / 90D / 1Y / 5Y / 10Y, with the range's open, close and percentage change stated in text beneath it. Ranges up to a year come from CoinGecko's `market_chart`; **5Y and 10Y come from Kraken's public OHLC endpoint**, because CoinGecko's keyless tier rejects any window wider than 365 days outright (`error_code 10012`). One Kraken request returns ~676 weekly candles back to 2013 and serves both long ranges. The caption names whichever source drew the chart, since the two price Bitcoin slightly differently. The long ranges use a **logarithmic axis** — Bitcoin moves ~200× across a decade, and a linear axis flattens every year but the last into the baseline — and the caption says so rather than switching silently. Each range is cached in the browser (5 minutes for intraday, up to 24 hours for the decade view)
 - **Future Value Projections** — A horizontal **bar ladder** and a sortable table showing holdings value at price targets ($50K–$1M), each with gain/loss vs the current price and the Bitcoin market cap that target would imply. Bars, not a line: the targets are discrete categories, and a filled line over them read as a timeline
 - **Sortable table** — Any column sorts ascending/descending, by click or keyboard, with `aria-sort` announced. The header stays put while the rows scroll. Under 720px each row becomes its own labelled card rather than a horizontal-scroll trap
 - **2025 ATH Target** — Pinned $126,198.07, Bitcoin's 2025 all-time high, hardcoded as a fixed reference point; it does not update if a new record is set
@@ -41,7 +41,8 @@ Styled with the [Observation Deck](https://observation-deck.netlify.app/) "missi
 - Vanilla JavaScript (no frameworks)
 - Single HTML file — no build step, no package manager, nothing to install
 - Chart.js 4.5.1 for data visualization (pinned to an exact version, loaded with Subresource Integrity)
-- CoinGecko free API (no key required) — `simple/price` for spot, `coins/bitcoin/market_chart` for history
+- CoinGecko free API (no key required) — `simple/price` for spot, `coins/bitcoin/market_chart` for history up to 1 year
+- Kraken public API (no key required) — `0/public/OHLC` weekly candles for the 5Y and 10Y ranges
 - Hosted on Netlify
 
 ## Getting Started

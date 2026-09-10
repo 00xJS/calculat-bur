@@ -8,7 +8,9 @@
 # breaks the page on any un-rehashed edit, or splitting the app into separate .js/.css
 # files, which would end the single-file property the fleet copies from this site.)
 # Everything else is locked down: one CDN for Chart.js, one API for pricing (both the
-# spot price and the market_chart history series), data: for the emoji-SVG favicon.
+# spot price and the market_chart history series), one API for history beyond a year
+# (CoinGecko's public tier refuses any window wider than 365 days), data: for the
+# emoji-SVG favicon.
 [[headers]]
   for = "/*"
   [headers.values]
@@ -16,4 +18,4 @@
     X-Frame-Options = "DENY"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
-    Content-Security-Policy = "default-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://api.coingecko.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    Content-Security-Policy = "default-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://api.coingecko.com https://api.kraken.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
